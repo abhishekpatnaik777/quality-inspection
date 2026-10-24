@@ -44,13 +44,37 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173).
 
+## Pre-commit checks
+
+A Husky **pre-commit** hook runs automatically before every commit:
+
+1. **Format check** — `prettier --check`
+2. **Lint** — `oxlint` (client + server)
+3. **Unit tests** — Node test runner (server) + Vitest (client)
+4. **Security audit** — `npm audit` (root, server, client; fails on high+)
+
+Run the same suite manually:
+
+```bash
+npm run precommit
+```
+
+Individual commands:
+
+```bash
+npm run format:check
+npm run lint
+npm run test
+npm run audit
+```
+
 ## API
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/health` | Health + DB check |
-| `GET` | `/api/items` | List items |
-| `GET` | `/api/items/:id` | Get one item |
-| `POST` | `/api/items` | Create `{ name, status?, notes? }` |
-| `PATCH` | `/api/items/:id` | Update fields |
-| `DELETE` | `/api/items/:id` | Delete item |
+| Method   | Path             | Description                        |
+| -------- | ---------------- | ---------------------------------- |
+| `GET`    | `/api/health`    | Health + DB check                  |
+| `GET`    | `/api/items`     | List items                         |
+| `GET`    | `/api/items/:id` | Get one item                       |
+| `POST`   | `/api/items`     | Create `{ name, status?, notes? }` |
+| `PATCH`  | `/api/items/:id` | Update fields                      |
+| `DELETE` | `/api/items/:id` | Delete item                        |

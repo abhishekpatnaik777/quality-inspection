@@ -1,95 +1,91 @@
-import { useCallback, useEffect, useState } from 'react'
-import './App.css'
-
-const STATUSES = ['pending', 'passed', 'failed']
+import { useCallback, useEffect, useState } from 'react';
+import { STATUSES } from './lib/statuses.js';
+import './App.css';
 
 function App() {
-  const [items, setItems] = useState([])
-  const [health, setHealth] = useState(null)
-  const [name, setName] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [items, setItems] = useState([]);
+  const [health, setHealth] = useState(null);
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
-    setError(null)
+    setError(null);
     try {
-      const [healthRes, itemsRes] = await Promise.all([
-        fetch('/api/health'),
-        fetch('/api/items'),
-      ])
-      const healthData = await healthRes.json()
-      setHealth(healthData)
+      const [healthRes, itemsRes] = await Promise.all([fetch('/api/health'), fetch('/api/items')]);
+      const healthData = await healthRes.json();
+      setHealth(healthData);
 
       if (!itemsRes.ok) {
-        throw new Error('Failed to load items')
+        throw new Error('Failed to load items');
       }
-      setItems(await itemsRes.json())
+      setItems(await itemsRes.json());
     } catch (err) {
-      setError(err.message || 'Unable to reach API')
-      setHealth({ status: 'down', database: 'unknown' })
+      setError(err.message || 'Unable to reach API');
+      setHealth({ status: 'down', database: 'unknown' });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    load()
-  }, [load])
+    load();
+  }, [load]);
 
   async function handleCreate(e) {
-    e.preventDefault()
-    if (!name.trim()) return
+    e.preventDefault();
+    if (!name.trim()) return;
 
-    setSubmitting(true)
-    setError(null)
+    setSubmitting(true);
+    setError(null);
     try {
       const res = await fetch('/api/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim() }),
-      })
+      });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || 'Failed to create item')
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to create item');
       }
-      setName('')
-      await load()
+      setName('');
+      await load();
     } catch (err) {
-      setError(err.message)
+      setError(err.message);
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
   async function updateStatus(id, status) {
-    setError(null)
+    setError(null);
     try {
       const res = await fetch(`/api/items/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
-      })
+      });
       if (!res.ok) {
-        throw new Error('Failed to update status')
+        throw new Error('Failed to update status');
       }
-      const updated = await res.json()
-      setItems((prev) => prev.map((item) => (item.id === id ? updated : item)))
+      const updated = await res.json();
+      setItems((prev) => prev.map((item) => (item.id === id ? updated : item)));
     } catch (err) {
-      setError(err.message)
+      setError(err.message);
     }
   }
 
   async function removeItem(id) {
-    setError(null)
+    setError(null);
     try {
-      const res = await fetch(`/api/items/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/items/${id}`, { method: 'DELETE' });
       if (!res.ok) {
-        throw new Error('Failed to delete item')
+        throw new Error('Failed to delete item');
       }
-      setItems((prev) => prev.filter((item) => item.id !== id))
+      setItems((prev) => prev.filter((item) => item.id !== id));
     } catch (err) {
-      setError(err.message)
+      setError(err.message);
     }
   }
 
@@ -103,13 +99,9 @@ function App() {
             React + Express + PostgreSQL boilerplate with a working CRUD flow.
           </p>
         </div>
-        <div
-          className={`health ${health?.database === 'connected' ? 'ok' : 'bad'}`}
-        >
+        <div className={`health ${health?.database === 'connected' ? 'ok' : 'bad'}`}>
           <span className="dot" />
-          {health
-            ? `API ${health.status} · DB ${health.database}`
-            : 'Checking…'}
+          {health ? `API ${health.status} · DB ${health.database}` : 'Checking…'}
         </div>
       </header>
 
@@ -151,11 +143,7 @@ function App() {
                   </option>
                 ))}
               </select>
-              <button
-                type="button"
-                className="ghost"
-                onClick={() => removeItem(item.id)}
-              >
+              <button type="button" className="ghost" onClick={() => removeItem(item.id)}>
                 Delete
               </button>
             </li>
@@ -163,7 +151,7 @@ function App() {
         </ul>
       )}
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
