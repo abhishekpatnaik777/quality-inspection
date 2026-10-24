@@ -1,0 +1,205 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/useAuth.js';
+import { DEFECT_TYPES, defectLabel } from '../lib/defects.js';
+import { inflightJson } from '../lib/inflightFetch.js';
+
+function fetchSupervisedInspections({ supervisorId, defectType, inspectorId, skuId }) {
+  const params = new URLSearchParams({ supervisor_id: String(supervisorId) });
+  if (defectType) params.set('defect_type', defectType);
+  if (inspectorId) params.set('inspector_id', inspectorId);
+  if (skuId) params.set('sku_id', skuId);
+  const url = `/api/inspections/supervised?${params}`;
+  return inflightJson(`GET ${url}`, url, { errorMessage: 'Failed to load team inspections' });
+}
+
+function formatTimestamp(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+export default function SupervisorInspectionsPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const supervisorId = user?.id;
+
+  const [items, setItems] = useState([]);
+  const [inspectors, setInspectors] = useState([]);
+  const [skus, setSkus] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [defectType, setDefectType] = useState('');
+  const [inspectorId, setInspectorId] = useState('');
+  const [skuId, setSkuId] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!supervisorId) {
+      setLoading(false);
+      setError('Signed-in supervisor is required');
+      return undefined;
+    }
+
+    setLoading(true);
+    fetchSupervisedInspections({ supervisorId, defectType, inspectorId, skuId })
+      .then((body) => {
+        if (cancelled) return;
+        setItems(body.items ?? []);
+        setInspectors(body.inspectors ?? []);
+        setSkus(body.skus ?? []);
+        setError(null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err.message || 'Unable to load team inspections');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supervisorId, defectType, inspectorId, skuId]);
+
+  const summary = useMemo(() => {
+    const accepted = items.filter((item) => item.ai_decision === 'accepted').length;
+    const overridden = items.filter((item) => item.ai_decision === 'overridden').length;
+    return { accepted, overridden };
+  }, [items]);
+
+  return (
+    <div className="page">
+      <header className="page-header">
+        <div>
+          <h1>Team inspections</h1>
+          <p className="subtitle">
+            Logged inspections from quality engineers reporting to {user?.name || 'you'}.
+          </p>
+        </div>
+      </header>
+
+      <div className="filter-bar">
+        <label>
+          Defect type
+          <select value={defectType} onChange={(e) => setDefectType(e.target.value)}>
+            <option value="">All defect types</option>
+            {DEFECT_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Inspector
+          <select value={inspectorId} onChange={(e) => setInspectorId(e.target.value)}>
+            <option value="">All inspectors</option>
+            {inspectors.map((inspector) => (
+              <option key={inspector.id} value={inspector.id}>
+                {inspector.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          SKU
+          <select value={skuId} onChange={(e) => setSkuId(e.target.value)}>
+            <option value="">All SKUs</option>
+            {skus.map((sku) => (
+              <option key={sku.id} value={sku.id}>
+                {sku.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {!loading && !error && items.length > 0 && (
+        <p className="muted filter-summary">
+          {items.length} result{items.length === 1 ? '' : 's'} · {summary.accepted} accepted ·{' '}
+          {summary.overridden} overridden
+        </p>
+      )}
+
+      {error && <p className="error">{error}</p>}
+
+      {loading ? (
+        <p className="loading-state">Loading team inspections…</p>
+      ) : items.length === 0 ? (
+        <p className="empty-state">No logged inspections match these filters.</p>
+      ) : (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Inspection</th>
+                <th>SKU</th>
+                <th>Final defect</th>
+                <th>AI prediction</th>
+                <th>Timestamp</th>
+                <th>Image</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr
+                  key={item.id}
+                  className="table-row-clickable"
+                  tabIndex={0}
+                  role="link"
+                  onClick={() => navigate(`/inspections/${item.inspection_id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      navigate(`/inspections/${item.inspection_id}`);
+                    }
+                  }}
+                >
+                  <td>
+                    <strong>#{item.inspection_id}</strong>
+                  </td>
+                  <td>{item.sku_name ?? '—'}</td>
+                  <td>{defectLabel(item.final_defect_type)}</td>
+                  <td>
+                    <span
+                      className={
+                        item.ai_decision === 'accepted'
+                          ? 'prediction-accepted'
+                          : 'prediction-overridden'
+                      }
+                    >
+                      {defectLabel(item.ai_defect_type)}
+                    </span>
+                  </td>
+                  <td className="cell-muted">{formatTimestamp(item.timestamp)}</td>
+                  <td>
+                    {item.thumbnail_url ? (
+                      <img
+                        className="table-thumb"
+                        src={item.thumbnail_url}
+                        alt={`Inspection ${item.inspection_id} photo`}
+                      />
+                    ) : (
+                      <div className="table-thumb placeholder" aria-hidden="true">
+                        —
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

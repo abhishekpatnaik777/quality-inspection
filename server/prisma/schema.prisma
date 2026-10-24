@@ -45,11 +45,39 @@ enum SkuCategory {
   @@map("sku_category")
 }
 
-enum ProductStatus {
-  usable
-  damaged
+enum InspectionStatus {
+  pending
+  pass
+  fail
 
-  @@map("product_status")
+  @@map("inspection_status")
+}
+
+enum AiInspectionStatus {
+  processing
+  awaiting_verification
+  completed
+  error
+
+  @@map("ai_inspection_status")
+}
+
+enum DefectType {
+  scratch
+  dent
+  paint_issue
+  missing_component
+  no_defect
+
+  @@map("defect_type")
+}
+
+enum PredictionStatus {
+  pending
+  approved
+  overridden
+
+  @@map("prediction_status")
 }
 
 model User {
@@ -86,6 +114,17 @@ model User {
   batchesUpdated           Batch[]             @relation("BatchUpdatedBy")
   productsCreated          Product[]           @relation("ProductCreatedBy")
   productsUpdated          Product[]           @relation("ProductUpdatedBy")
+
+  inspections              Inspection[]        @relation("InspectionEngineer")
+  inspectionsCreated       Inspection[]        @relation("InspectionCreatedBy")
+  inspectionsUpdated       Inspection[]        @relation("InspectionUpdatedBy")
+  aiInspectionsCreated     AiInspection[]      @relation("AiInspectionCreatedBy")
+  aiInspectionsUpdated     AiInspection[]      @relation("AiInspectionUpdatedBy")
+  predictionsVerified      AiInspectionPrediction[] @relation("PredictionVerifiedBy")
+  predictionsCreated       AiInspectionPrediction[] @relation("PredictionCreatedBy")
+  predictionsUpdated       AiInspectionPrediction[] @relation("PredictionUpdatedBy")
+  inspectionResultsCreated InspectionResult[]  @relation("InspectionResultCreatedBy")
+  inspectionResultsUpdated InspectionResult[]  @relation("InspectionResultUpdatedBy")
 
   @@index([status], map: "idx_users_status")
   @@index([email], map: "idx_users_email")
@@ -195,19 +234,113 @@ model Batch {
 }
 
 model Product {
-  id        Int           @id @default(autoincrement())
-  batchId   Int           @map("batch_id")
-  status    ProductStatus @default(usable)
-  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy Int?          @map("created_by")
-  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  updatedBy Int?          @map("updated_by")
+  id        Int      @id @default(autoincrement())
+  batchId   Int      @map("batch_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy Int?     @map("created_by")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy Int?     @map("updated_by")
 
   batch         Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
   createdByUser User? @relation("ProductCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   updatedByUser User? @relation("ProductUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
 
+  inspections Inspection[]
+
   @@index([batchId], map: "idx_products_batch_id")
-  @@index([status], map: "idx_products_status")
   @@map("products")
+}
+
+model Inspection {
+  id             Int              @id @default(autoincrement())
+  userId         Int              @map("user_id")
+  productId      Int              @map("product_id")
+  inspectionDate DateTime         @default(now()) @map("inspection_date") @db.Date
+  status         InspectionStatus @default(pending)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy      Int?             @map("created_by")
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy      Int?             @map("updated_by")
+
+  engineer      User  @relation("InspectionEngineer", fields: [userId], references: [id], onDelete: Restrict)
+  product       Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  createdByUser User? @relation("InspectionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByUser User? @relation("InspectionUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  aiInspections AiInspection[]
+  results       InspectionResult[]
+
+  @@index([userId], map: "idx_inspections_user_id")
+  @@index([productId], map: "idx_inspections_product_id")
+  @@index([status], map: "idx_inspections_status")
+  @@map("inspections")
+}
+
+model AiInspection {
+  id           Int                @id @default(autoincrement())
+  inspectionId Int                @map("inspection_id")
+  imageUrl     String             @map("image_url") @db.VarChar(512)
+  status       AiInspectionStatus @default(processing)
+  rawResponse  Json?              @map("raw_response")
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy    Int?               @map("created_by")
+  updatedAt    DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy    Int?               @map("updated_by")
+
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  createdByUser User?      @relation("AiInspectionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByUser User?      @relation("AiInspectionUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  predictions AiInspectionPrediction[]
+
+  @@index([inspectionId], map: "idx_ai_inspections_inspection_id")
+  @@index([status], map: "idx_ai_inspections_status")
+  @@map("ai_inspections")
+}
+
+model AiInspectionPrediction {
+  id              Int             @id @default(autoincrement())
+  aiInspectionId  Int             @map("ai_inspection_id")
+  aiDefectType    DefectType      @map("ai_defect_type")
+  confidence      Decimal         @db.Decimal(5, 4)
+  status          PredictionStatus @default(pending)
+  finalDefectType DefectType?     @map("final_defect_type")
+  comment         String?         @db.Text
+  verifiedBy      Int?            @map("verified_by")
+  verifiedAt      DateTime?       @map("verified_at") @db.Timestamptz(6)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy       Int?            @map("created_by")
+  updatedAt       DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy       Int?            @map("updated_by")
+
+  aiInspection  AiInspection @relation(fields: [aiInspectionId], references: [id], onDelete: Cascade)
+  verifier      User?        @relation("PredictionVerifiedBy", fields: [verifiedBy], references: [id], onDelete: SetNull)
+  createdByUser User?        @relation("PredictionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByUser User?        @relation("PredictionUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  result InspectionResult?
+
+  @@index([aiInspectionId], map: "idx_ai_inspection_predictions_ai_inspection_id")
+  @@index([status], map: "idx_ai_inspection_predictions_status")
+  @@map("ai_inspection_predictions")
+}
+
+model InspectionResult {
+  id                       Int        @id @default(autoincrement())
+  inspectionId             Int        @map("inspection_id")
+  aiInspectionPredictionId Int        @unique @map("ai_inspection_prediction_id")
+  defectType               DefectType @map("defect_type")
+  createdAt                DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy                Int?       @map("created_by")
+  updatedAt                DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy                Int?       @map("updated_by")
+
+  inspection Inspection             @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  prediction AiInspectionPrediction @relation(fields: [aiInspectionPredictionId], references: [id], onDelete: Cascade)
+  createdByUser User? @relation("InspectionResultCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByUser User? @relation("InspectionResultUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([inspectionId], map: "idx_inspection_results_inspection_id")
+  @@index([defectType], map: "idx_inspection_results_defect_type")
+  @@map("inspection_results")
 }

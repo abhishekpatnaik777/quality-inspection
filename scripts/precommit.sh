@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "==> Format check (Prettier)"
-npm run format:check
+echo "==> Format (Prettier)"
+npm run format
 
 echo "==> Lint (oxlint)"
 npm run lint

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { USER_ROLES, roleLabel } from '../lib/enums.js';
-import './UsersPage.css';
+import { fetchJson, inflightJson } from '../lib/inflightFetch.js';
+import { userStatusBadge } from '../lib/statusBadge.js';
 
 const emptyForm = {
   name: '',
@@ -9,6 +9,11 @@ const emptyForm = {
   role: 'quality_engineer',
   supervisor_id: '',
 };
+
+function usersUrl(query) {
+  const qs = query ? `?q=${encodeURIComponent(query)}` : '';
+  return `/api/users${qs}`;
+}
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -34,31 +39,31 @@ export default function UsersPage() {
   );
 
   useEffect(() => {
-    const controller = new AbortController();
+    let cancelled = false;
     const query = search.trim();
     const delayMs = query ? 250 : 0;
 
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       setLoading(true);
       setError(null);
-      try {
-        const qs = query ? `?q=${encodeURIComponent(query)}` : '';
-        const res = await fetch(`/api/users${qs}`, { signal: controller.signal });
-        if (!res.ok) throw new Error('Failed to load users');
-        setUsers(await res.json());
-      } catch (err) {
-        if (err.name === 'AbortError') return;
-        setError(err.message || 'Unable to load users');
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
+      const url = usersUrl(query);
+      inflightJson(`GET ${url}`, url, { errorMessage: 'Failed to load users' })
+        .then((data) => {
+          if (cancelled) return;
+          setUsers(data);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setError(err.message || 'Unable to load users');
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
     }, delayMs);
 
     return () => {
+      cancelled = true;
       clearTimeout(timer);
-      controller.abort();
     };
   }, [search]);
 
@@ -86,10 +91,8 @@ export default function UsersPage() {
     setError(null);
     try {
       const query = searchRef.current.trim();
-      const qs = query ? `?q=${encodeURIComponent(query)}` : '';
-      const res = await fetch(`/api/users${qs}`);
-      if (!res.ok) throw new Error('Failed to load users');
-      setUsers(await res.json());
+      const url = usersUrl(query);
+      setUsers(await fetchJson(url, { errorMessage: 'Failed to load users' }));
     } catch (err) {
       setError(err.message || 'Unable to load users');
     } finally {
@@ -136,18 +139,17 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="users-page">
-      <header className="users-header">
+    <div className="page">
+      <header className="page-header">
         <div>
-          <Link to="/" className="back-link">
-            ← Dashboard
-          </Link>
           <h1>Users</h1>
           <p className="subtitle">{countLabel}</p>
         </div>
-        <button type="button" className="primary-btn" onClick={openModal}>
-          Add user
-        </button>
+        <div className="page-header-actions">
+          <button type="button" className="primary-btn" onClick={openModal}>
+            Add user
+          </button>
+        </div>
       </header>
 
       <div className="search-row">
@@ -164,31 +166,46 @@ export default function UsersPage() {
       {error && <p className="error">{error}</p>}
 
       {loading ? (
-        <p className="muted">Loading users…</p>
+        <p className="loading-state">Loading users…</p>
       ) : users.length === 0 ? (
-        <p className="muted">No users found.</p>
+        <p className="empty-state">No users found.</p>
       ) : (
-        <ul className="user-list">
-          {users.map((user) => (
-            <li key={user.id} className="user-row">
-              <div className="user-meta">
-                <strong>{user.name}</strong>
-                <span className="muted-line">{user.email}</span>
-                {user.supervisor && (
-                  <span className="muted-line">Supervisor: {user.supervisor.name}</span>
-                )}
-              </div>
-              <div className="user-tags">
-                {(user.roles || []).map((role) => (
-                  <span key={role} className="tag">
-                    {roleLabel(role)}
-                  </span>
-                ))}
-                <span className="tag tag-status">{user.status}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Roles</th>
+                <th>Supervisor</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td>
+                    <strong>{user.name}</strong>
+                  </td>
+                  <td className="cell-muted">{user.email}</td>
+                  <td>
+                    <div className="row-tags">
+                      {(user.roles || []).map((role) => (
+                        <span key={role} className="badge badge-neutral">
+                          {roleLabel(role)}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="cell-muted">{user.supervisor?.name || '—'}</td>
+                  <td>
+                    <span className={userStatusBadge(user.status)}>{user.status}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {modalOpen && (
