@@ -1,0 +1,243 @@
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.app-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--sidebar-width);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  transition: transform 0.2s ease;
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--text);
+}
+
+.app-brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.app-brand-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.app-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.app-nav-link {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--muted);
+  font-size: 0.925rem;
+  font-weight: 500;
+}
+
+.app-nav-link:hover {
+  background: #f1f5f9;
+  color: var(--text);
+}
+
+.app-nav-link.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.app-nav-empty {
+  margin: 8px 12px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.app-main {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: var(--topbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.app-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.app-menu-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.app-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.app-user {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  min-width: 0;
+}
+
+.app-user-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.app-user-role {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.health-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  background: var(--surface);
+  white-space: nowrap;
+}
+
+.health-pill .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warn);
+  flex-shrink: 0;
+}
+
+.health-pill.ok .dot {
+  background: var(--ok);
+}
+
+.health-pill.bad .dot {
+  background: var(--bad);
+}
+
+.app-content {
+  flex: 1;
+  padding: 28px 24px 48px;
+}
+
+.app-overlay {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .app-menu-btn {
+    display: inline-flex;
+  }
+
+  .app-sidebar {
+    transform: translateX(-100%);
+  }
+
+  .app-shell.nav-open .app-sidebar {
+    transform: translateX(0);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .app-shell.nav-open .app-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    z-index: 35;
+  }
+
+  .app-main {
+    margin-left: 0;
+  }
+
+  .app-topbar {
+    padding: 0 16px;
+  }
+
+  .app-content {
+    padding: 20px 16px 40px;
+  }
+
+  .app-user-name {
+    max-width: 120px;
+  }
+
+  .health-pill .health-label {
+    display: none;
+  }
+}

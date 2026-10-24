@@ -8,3 +8,6 @@ build/
 coverage/
 .vite/
 server/node_modules/.prisma/
+server/uploads/**/*
+!server/uploads/.gitkeep
+

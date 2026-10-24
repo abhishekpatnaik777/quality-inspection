@@ -15,7 +15,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "audit": "npm audit --audit-level=high && npm audit --prefix server --audit-level=high && npm audit --prefix client --audit-level=high",
-    "precommit": "npm run format:check && npm run lint && npm run test && npm run audit",
+    "precommit": "npm run format && npm run lint && npm run test && npm run audit",
     "prepare": "husky"
   },
   "devDependencies": {

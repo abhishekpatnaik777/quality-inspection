@@ -1,6 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import './UsersPage.css';
+import { inflightJson, sharedInflight } from '../lib/inflightFetch.js';
+
+function loadProductsCatalog() {
+  return sharedInflight('products-page-catalog', () =>
+    Promise.all([
+      inflightJson('GET /api/products', '/api/products', {
+        errorMessage: 'Failed to load products',
+      }),
+      inflightJson('GET /api/skus', '/api/skus', { errorMessage: 'Failed to load SKUs' }),
+      inflightJson('GET /api/manufacturing-units', '/api/manufacturing-units', {
+        errorMessage: 'Failed to load manufacturing units',
+      }),
+    ]).then(([nextProducts, nextSkus, nextUnits]) => ({
+      products: nextProducts,
+      skus: nextSkus,
+      units: nextUnits,
+    }))
+  );
+}
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
@@ -30,39 +47,27 @@ export default function ProductsPage() {
       : null;
 
   useEffect(() => {
-    const controller = new AbortController();
+    let cancelled = false;
 
-    async function loadCatalog() {
-      try {
-        const [productsRes, skusRes, unitsRes] = await Promise.all([
-          fetch('/api/products', { signal: controller.signal }),
-          fetch('/api/skus', { signal: controller.signal }),
-          fetch('/api/manufacturing-units', { signal: controller.signal }),
-        ]);
-        if (!productsRes.ok) throw new Error('Failed to load products');
-        if (!skusRes.ok) throw new Error('Failed to load SKUs');
-        if (!unitsRes.ok) throw new Error('Failed to load manufacturing units');
-        const [nextProducts, nextSkus, nextUnits] = await Promise.all([
-          productsRes.json(),
-          skusRes.json(),
-          unitsRes.json(),
-        ]);
+    loadProductsCatalog()
+      .then(({ products: nextProducts, skus: nextSkus, units: nextUnits }) => {
+        if (cancelled) return;
         setProducts(nextProducts);
         setSkus(nextSkus);
         setUnits(nextUnits);
         setError(null);
-      } catch (err) {
-        if (err.name === 'AbortError') return;
+      })
+      .catch((err) => {
+        if (cancelled) return;
         setError(err.message || 'Unable to load products');
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    loadCatalog();
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function openModal() {
@@ -121,29 +126,28 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="users-page">
-      <header className="users-header">
+    <div className="page">
+      <header className="page-header">
         <div>
-          <Link to="/" className="back-link">
-            ← Dashboard
-          </Link>
           <h1>Products</h1>
           <p className="subtitle">
             {products.length} product{products.length === 1 ? '' : 's'}
           </p>
         </div>
-        <button
-          type="button"
-          className="primary-btn"
-          onClick={openModal}
-          disabled={skus.length === 0 || units.length === 0}
-        >
-          Add product
-        </button>
+        <div className="page-header-actions">
+          <button
+            type="button"
+            className="primary-btn"
+            onClick={openModal}
+            disabled={skus.length === 0 || units.length === 0}
+          >
+            Add product
+          </button>
+        </div>
       </header>
 
       {(skus.length === 0 || units.length === 0) && (
-        <p className="muted">
+        <p className="hint">
           Add at least one SKU and one manufacturing unit before generating products.
         </p>
       )}
@@ -151,27 +155,34 @@ export default function ProductsPage() {
       {error && <p className="error">{error}</p>}
 
       {loading ? (
-        <p className="muted">Loading products…</p>
+        <p className="loading-state">Loading products…</p>
       ) : products.length === 0 ? (
-        <p className="muted">No products yet.</p>
+        <p className="empty-state">No products yet.</p>
       ) : (
-        <ul className="user-list">
-          {products.map((product) => (
-            <li key={product.id} className="user-row">
-              <div className="user-meta">
-                <strong>
-                  #{product.id} · {product.sku_name}
-                </strong>
-                <span className="muted-line">
-                  Batch {product.batch_number} · {product.manufacturing_unit_name}
-                </span>
-              </div>
-              <div className="user-tags">
-                <span className="tag tag-status">{product.status}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>SKU</th>
+                <th>Batch</th>
+                <th>Manufacturing unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((product) => (
+                <tr key={product.id}>
+                  <td>
+                    <strong>#{product.id}</strong>
+                  </td>
+                  <td>{product.sku_name}</td>
+                  <td className="cell-muted">{product.batch_number}</td>
+                  <td className="cell-muted">{product.manufacturing_unit_name}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {modalOpen && (

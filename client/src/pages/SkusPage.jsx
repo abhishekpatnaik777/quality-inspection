@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { SKU_CATEGORIES, categoryLabel } from '../lib/catalog.js';
-import './UsersPage.css';
+import { inflightJson } from '../lib/inflightFetch.js';
 
 const emptyForm = {
   name: '',
@@ -19,27 +18,25 @@ export default function SkusPage() {
   const [formError, setFormError] = useState(null);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let cancelled = false;
 
-    async function loadSkus() {
-      try {
-        const res = await fetch('/api/skus', { signal: controller.signal });
-        if (!res.ok) throw new Error('Failed to load SKUs');
-        const data = await res.json();
+    inflightJson('GET /api/skus', '/api/skus', { errorMessage: 'Failed to load SKUs' })
+      .then((data) => {
+        if (cancelled) return;
         setSkus(data);
         setError(null);
-      } catch (err) {
-        if (err.name === 'AbortError') return;
+      })
+      .catch((err) => {
+        if (cancelled) return;
         setError(err.message || 'Unable to load SKUs');
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    loadSkus();
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function openModal() {
@@ -79,41 +76,50 @@ export default function SkusPage() {
   }
 
   return (
-    <div className="users-page">
-      <header className="users-header">
+    <div className="page">
+      <header className="page-header">
         <div>
-          <Link to="/" className="back-link">
-            ← Dashboard
-          </Link>
-          <h1>SKU</h1>
+          <h1>SKUs</h1>
           <p className="subtitle">
             {skus.length} SKU{skus.length === 1 ? '' : 's'}
           </p>
         </div>
-        <button type="button" className="primary-btn" onClick={openModal}>
-          Add SKU
-        </button>
+        <div className="page-header-actions">
+          <button type="button" className="primary-btn" onClick={openModal}>
+            Add SKU
+          </button>
+        </div>
       </header>
 
       {error && <p className="error">{error}</p>}
 
       {loading ? (
-        <p className="muted">Loading SKUs…</p>
+        <p className="loading-state">Loading SKUs…</p>
       ) : skus.length === 0 ? (
-        <p className="muted">No SKUs yet.</p>
+        <p className="empty-state">No SKUs yet.</p>
       ) : (
-        <ul className="user-list">
-          {skus.map((sku) => (
-            <li key={sku.id} className="user-row">
-              <div className="user-meta">
-                <strong>{sku.name}</strong>
-                <span className="muted-line">
-                  {categoryLabel(sku.category)} · {sku.model}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Model</th>
+              </tr>
+            </thead>
+            <tbody>
+              {skus.map((sku) => (
+                <tr key={sku.id}>
+                  <td>
+                    <strong>{sku.name}</strong>
+                  </td>
+                  <td className="cell-muted">{categoryLabel(sku.category)}</td>
+                  <td className="cell-muted">{sku.model}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {modalOpen && (

@@ -74,7 +74,6 @@ router.post('/generate', async (req, res) => {
       await tx.product.createMany({
         data: Array.from({ length: unit.capacity }, () => ({
           batchId: batch.id,
-          status: 'usable',
           createdBy: created_by,
           updatedBy: updated_by,
         })),
