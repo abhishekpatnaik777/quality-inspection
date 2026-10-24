@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './UsersPage.css';
 
@@ -29,30 +29,41 @@ export default function ProductsPage() {
       ? `Generating ${selectedUnit.capacity} ${selectedSku.name} with a unique batch Id.`
       : null;
 
-  const load = useCallback(async () => {
-    try {
-      const [productsRes, skusRes, unitsRes] = await Promise.all([
-        fetch('/api/products'),
-        fetch('/api/skus'),
-        fetch('/api/manufacturing-units'),
-      ]);
-      if (!productsRes.ok) throw new Error('Failed to load products');
-      if (!skusRes.ok) throw new Error('Failed to load SKUs');
-      if (!unitsRes.ok) throw new Error('Failed to load manufacturing units');
-      setProducts(await productsRes.json());
-      setSkus(await skusRes.json());
-      setUnits(await unitsRes.json());
-      setError(null);
-    } catch (err) {
-      setError(err.message || 'Unable to load products');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    const controller = new AbortController();
+
+    async function loadCatalog() {
+      try {
+        const [productsRes, skusRes, unitsRes] = await Promise.all([
+          fetch('/api/products', { signal: controller.signal }),
+          fetch('/api/skus', { signal: controller.signal }),
+          fetch('/api/manufacturing-units', { signal: controller.signal }),
+        ]);
+        if (!productsRes.ok) throw new Error('Failed to load products');
+        if (!skusRes.ok) throw new Error('Failed to load SKUs');
+        if (!unitsRes.ok) throw new Error('Failed to load manufacturing units');
+        const [nextProducts, nextSkus, nextUnits] = await Promise.all([
+          productsRes.json(),
+          skusRes.json(),
+          unitsRes.json(),
+        ]);
+        setProducts(nextProducts);
+        setSkus(nextSkus);
+        setUnits(nextUnits);
+        setError(null);
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        setError(err.message || 'Unable to load products');
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadCatalog();
+    return () => controller.abort();
+  }, []);
 
   function openModal() {
     setSkuId(skus[0] ? String(skus[0].id) : '');
@@ -91,10 +102,12 @@ export default function ProductsPage() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'Failed to generate products');
 
+      if (Array.isArray(body.products)) {
+        setProducts((prev) => [...prev, ...body.products]);
+      }
       setStatusMessage(
         `${body.message} Batch ${body.batch?.batch_number} created (${body.products_created} products).`
       );
-      await load();
       setTimeout(() => {
         setModalOpen(false);
         setStatusMessage(null);

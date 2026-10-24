@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import './UsersPage.css';
 
@@ -17,22 +17,29 @@ export default function ManufacturingUnitsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch('/api/manufacturing-units');
-      if (!res.ok) throw new Error('Failed to load manufacturing units');
-      setUnits(await res.json());
-      setError(null);
-    } catch (err) {
-      setError(err.message || 'Unable to load manufacturing units');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    const controller = new AbortController();
+
+    async function loadUnits() {
+      try {
+        const res = await fetch('/api/manufacturing-units', { signal: controller.signal });
+        if (!res.ok) throw new Error('Failed to load manufacturing units');
+        const data = await res.json();
+        setUnits(data);
+        setError(null);
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        setError(err.message || 'Unable to load manufacturing units');
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadUnits();
+    return () => controller.abort();
+  }, []);
 
   function openModal() {
     setForm(emptyForm);
@@ -61,8 +68,8 @@ export default function ManufacturingUnitsPage() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'Failed to create manufacturing unit');
+      setUnits((prev) => [...prev, body]);
       setModalOpen(false);
-      await load();
     } catch (err) {
       setFormError(err.message);
     } finally {

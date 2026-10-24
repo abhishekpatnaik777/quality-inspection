@@ -1,9 +1,8 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { AuthContext } from './authContext.js';
 import { LOGIN_ROLES } from './loginRoles.js';
 
 const STORAGE_KEY = 'qi.session';
-
-const AuthContext = createContext(null);
 
 function readStoredSession() {
   try {
@@ -47,12 +46,4 @@ export function AuthProvider({ children }) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return ctx;
 }

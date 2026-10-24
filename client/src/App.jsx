@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { AuthProvider } from './auth/AuthContext.jsx';
+import { AuthProvider } from './auth/AuthProvider.jsx';
 import RequireAdmin from './auth/RequireAdmin.jsx';
 import HomePage from './pages/HomePage.jsx';
 import UsersPage from './pages/UsersPage.jsx';

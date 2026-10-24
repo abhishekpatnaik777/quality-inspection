@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import { useAuth } from './AuthContext.jsx';
+import { useAuth } from './useAuth.js';
 
 export default function RequireAdmin({ children }) {
   const { isAuthenticated, isAdmin } = useAuth();
