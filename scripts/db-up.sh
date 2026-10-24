@@ -18,26 +18,9 @@ if [[ -x /usr/local/opt/postgresql@16/bin/psql ]]; then
   export PATH="/usr/local/opt/postgresql@16/bin:$PATH"
 fi
 
-# Fallback: Docker Compose
 if ! command -v psql >/dev/null 2>&1; then
-  if command -v docker >/dev/null 2>&1; then
-    echo "No local psql found — starting PostgreSQL with Docker Compose…"
-    docker compose up -d
-    echo "Waiting for database health…"
-    for _ in $(seq 1 30); do
-      if docker compose exec -T db pg_isready -U postgres -d quality_inspection >/dev/null 2>&1; then
-        echo "Database is ready (Docker)."
-        echo "Connection: postgresql://postgres:postgres@127.0.0.1:5432/quality_inspection"
-        exit 0
-      fi
-      sleep 1
-    done
-    echo "Docker Postgres started but is not healthy yet. Check: docker compose logs db"
-    exit 1
-  fi
-
-  echo "Neither Docker nor local psql found."
-  echo "Open Postgres.app (or install Docker), then re-run: npm run db:up"
+  echo "psql not found."
+  echo "Install and start Postgres.app (https://postgresapp.com/), then re-run: npm run db:up"
   exit 1
 fi
 

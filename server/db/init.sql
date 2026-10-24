@@ -1,4 +1,4 @@
--- Initial schema (also applied on first `docker compose up`)
+-- Initial schema (applied by `npm run db:up` / `npm run db:migrate`)
 
 CREATE TABLE IF NOT EXISTS items (
   id SERIAL PRIMARY KEY,
