@@ -30,7 +30,6 @@ export default function ProductsPage() {
       : null;
 
   const load = useCallback(async () => {
-    setError(null);
     try {
       const [productsRes, skusRes, unitsRes] = await Promise.all([
         fetch('/api/products'),
@@ -43,6 +42,7 @@ export default function ProductsPage() {
       setProducts(await productsRes.json());
       setSkus(await skusRes.json());
       setUnits(await unitsRes.json());
+      setError(null);
     } catch (err) {
       setError(err.message || 'Unable to load products');
     } finally {

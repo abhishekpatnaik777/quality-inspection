@@ -18,11 +18,11 @@ export default function ManufacturingUnitsPage() {
   const [formError, setFormError] = useState(null);
 
   const load = useCallback(async () => {
-    setError(null);
     try {
       const res = await fetch('/api/manufacturing-units');
       if (!res.ok) throw new Error('Failed to load manufacturing units');
       setUnits(await res.json());
+      setError(null);
     } catch (err) {
       setError(err.message || 'Unable to load manufacturing units');
     } finally {
