@@ -36,6 +36,22 @@ enum UserSupervisorStatus {
   @@map("user_supervisor_status")
 }
 
+enum SkuCategory {
+  electronics
+  mechanical
+  consumable
+  other
+
+  @@map("sku_category")
+}
+
+enum ProductStatus {
+  usable
+  damaged
+
+  @@map("product_status")
+}
+
 model User {
   id        Int        @id @default(autoincrement())
   name      String     @db.VarChar(255)
@@ -53,8 +69,8 @@ model User {
 
   roles UserRole[]
 
-  rolesCreated     UserRole[] @relation("UserRoleCreatedBy")
-  rolesUpdated     UserRole[] @relation("UserRoleUpdatedBy")
+  rolesCreated UserRole[] @relation("UserRoleCreatedBy")
+  rolesUpdated UserRole[] @relation("UserRoleUpdatedBy")
 
   qualityEngineerLink UserSupervisor?  @relation("QualityEngineerAssignment")
   supervisedEngineers UserSupervisor[] @relation("SupervisorAssignment")
@@ -62,20 +78,29 @@ model User {
   supervisorLinksCreated UserSupervisor[] @relation("UserSupervisorCreatedBy")
   supervisorLinksUpdated UserSupervisor[] @relation("UserSupervisorUpdatedBy")
 
+  skusCreated              Sku[]               @relation("SkuCreatedBy")
+  skusUpdated              Sku[]               @relation("SkuUpdatedBy")
+  manufacturingUnitsCreated ManufacturingUnit[] @relation("ManufacturingUnitCreatedBy")
+  manufacturingUnitsUpdated ManufacturingUnit[] @relation("ManufacturingUnitUpdatedBy")
+  batchesCreated           Batch[]             @relation("BatchCreatedBy")
+  batchesUpdated           Batch[]             @relation("BatchUpdatedBy")
+  productsCreated          Product[]           @relation("ProductCreatedBy")
+  productsUpdated          Product[]           @relation("ProductUpdatedBy")
+
   @@index([status], map: "idx_users_status")
   @@index([email], map: "idx_users_email")
   @@map("users")
 }
 
 model UserRole {
-  id        Int           @id @default(autoincrement())
-  userId    Int           @map("user_id")
+  id        Int            @id @default(autoincrement())
+  userId    Int            @map("user_id")
   role      UserRoleName
   status    UserRoleStatus @default(active)
-  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  createdBy Int?          @map("created_by")
-  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  updatedBy Int?          @map("updated_by")
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy Int?           @map("created_by")
+  updatedAt DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy Int?           @map("updated_by")
 
   user          User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdByUser User? @relation("UserRoleCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
@@ -105,4 +130,84 @@ model UserSupervisor {
   @@index([supervisorId], map: "idx_user_supervisors_supervisor_id")
   @@index([status], map: "idx_user_supervisors_status")
   @@map("user_supervisors")
+}
+
+model Sku {
+  id        Int         @id @default(autoincrement())
+  name      String      @db.VarChar(255)
+  category  SkuCategory
+  model     String      @db.VarChar(255)
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy Int?        @map("created_by")
+  updatedAt DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy Int?        @map("updated_by")
+
+  createdByUser User? @relation("SkuCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByUser User? @relation("SkuUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  batches Batch[]
+
+  @@unique([category, model])
+  @@index([category], map: "idx_skus_category")
+  @@map("skus")
+}
+
+model ManufacturingUnit {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(255)
+  location  String   @db.VarChar(255)
+  capacity  Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy Int?     @map("created_by")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy Int?     @map("updated_by")
+
+  createdByUser User? @relation("ManufacturingUnitCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByUser User? @relation("ManufacturingUnitUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  batches Batch[]
+
+  @@index([name], map: "idx_manufacturing_units_name")
+  @@map("manufacturing_units")
+}
+
+model Batch {
+  id                  Int      @id @default(autoincrement())
+  batchNumber         String   @unique @map("batch_number") @db.VarChar(64)
+  manufacturingUnitId Int      @map("manufacturing_unit_id")
+  skuId               Int      @map("sku_id")
+  manufacturingDate   DateTime @map("manufacturing_date") @db.Date
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy           Int?     @map("created_by")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy           Int?     @map("updated_by")
+
+  manufacturingUnit ManufacturingUnit @relation(fields: [manufacturingUnitId], references: [id], onDelete: Restrict)
+  sku               Sku               @relation(fields: [skuId], references: [id], onDelete: Restrict)
+  createdByUser     User?             @relation("BatchCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByUser     User?             @relation("BatchUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  products Product[]
+
+  @@index([manufacturingUnitId], map: "idx_batches_manufacturing_unit_id")
+  @@index([skuId], map: "idx_batches_sku_id")
+  @@map("batches")
+}
+
+model Product {
+  id        Int           @id @default(autoincrement())
+  batchId   Int           @map("batch_id")
+  status    ProductStatus @default(usable)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy Int?          @map("created_by")
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy Int?          @map("updated_by")
+
+  batch         Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  createdByUser User? @relation("ProductCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByUser User? @relation("ProductUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([batchId], map: "idx_products_batch_id")
+  @@index([status], map: "idx_products_status")
+  @@map("products")
 }
