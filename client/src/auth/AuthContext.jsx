@@ -1,12 +1,7 @@
 import { createContext, useContext, useMemo, useState } from 'react';
+import { LOGIN_ROLES } from './loginRoles.js';
 
 const STORAGE_KEY = 'qi.session';
-
-export const LOGIN_ROLES = [
-  { value: 'admin', label: 'Admin' },
-  { value: 'supervisor', label: 'Supervisor' },
-  { value: 'quality_engineer', label: 'Quality Engineer' },
-];
 
 const AuthContext = createContext(null);
 
