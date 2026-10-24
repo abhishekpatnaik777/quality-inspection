@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
+import { validateCreateItem, validateUpdateItem } from '../lib/items.js';
 
 const router = Router();
 
@@ -32,18 +33,19 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { name, status = 'pending', notes = null } = req.body ?? {};
-
-  if (!name || typeof name !== 'string') {
-    return res.status(400).json({ error: 'name is required' });
+  const parsed = validateCreateItem(req.body);
+  if (!parsed.ok) {
+    return res.status(parsed.statusCode).json({ error: parsed.error });
   }
+
+  const { name, status, notes } = parsed.value;
 
   try {
     const { rows } = await query(
       `INSERT INTO items (name, status, notes)
        VALUES ($1, $2, $3)
        RETURNING id, name, status, notes, created_at, updated_at`,
-      [name.trim(), status, notes]
+      [name, status, notes]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -53,7 +55,12 @@ router.post('/', async (req, res) => {
 });
 
 router.patch('/:id', async (req, res) => {
-  const { name, status, notes } = req.body ?? {};
+  const parsed = validateUpdateItem(req.body);
+  if (!parsed.ok) {
+    return res.status(parsed.statusCode).json({ error: parsed.error });
+  }
+
+  const { name, status, notes } = parsed.value;
 
   try {
     const { rows } = await query(
@@ -65,7 +72,7 @@ router.patch('/:id', async (req, res) => {
          updated_at = NOW()
        WHERE id = $4
        RETURNING id, name, status, notes, created_at, updated_at`,
-      [name ?? null, status ?? null, notes ?? null, req.params.id]
+      [name, status, notes, req.params.id]
     );
 
     if (!rows.length) {
@@ -80,9 +87,7 @@ router.patch('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   try {
-    const { rowCount } = await query('DELETE FROM items WHERE id = $1', [
-      req.params.id,
-    ]);
+    const { rowCount } = await query('DELETE FROM items WHERE id = $1', [req.params.id]);
     if (!rowCount) {
       return res.status(404).json({ error: 'Item not found' });
     }
