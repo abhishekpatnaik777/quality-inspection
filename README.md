@@ -93,7 +93,70 @@ Open [http://localhost:5173](http://localhost:5173).
 
 Many quality engineers map to one supervisor (`user_id` is unique). Creating a **quality engineer** requires `supervisor_id` and inserts `user_roles` + `user_supervisors` in the same transaction.
 
-UI: home has a **Users** tab → `/users` (search + add-user modal).
+### SKU
+
+Catalog item produced on the floor. Category + model must be unique.
+
+| Field                   | Type                                                     |
+| ----------------------- | -------------------------------------------------------- |
+| id                      | serial                                                   |
+| name                    | string                                                   |
+| category                | enum: `electronics`, `mechanical`, `consumable`, `other` |
+| model                   | string                                                   |
+| created_at / updated_at | timestamptz                                              |
+| created_by / updated_by | FK → users (nullable)                                    |
+
+### MANUFACTURING_UNIT
+
+Physical plant/line that produces batches. `capacity` is how many products are created per batch generate.
+
+| Field                   | Type                  |
+| ----------------------- | --------------------- |
+| id                      | serial                |
+| name                    | string                |
+| location                | string                |
+| capacity                | integer (≥ 1)         |
+| created_at / updated_at | timestamptz           |
+| created_by / updated_by | FK → users (nullable) |
+
+### BATCH
+
+One production run of a SKU at a manufacturing unit. Created when an admin generates products; `batch_number` is unique.
+
+| Field                   | Type                     |
+| ----------------------- | ------------------------ |
+| id                      | serial                   |
+| batch_number            | string (unique)          |
+| manufacturing_unit_id   | FK → manufacturing_units |
+| sku_id                  | FK → skus                |
+| manufacturing_date      | date                     |
+| created_at / updated_at | timestamptz              |
+| created_by / updated_by | FK → users (nullable)    |
+
+### PRODUCT
+
+Individual unit from a batch. Status starts as `usable` (later inspection can mark `damaged`).
+
+| Field                   | Type                          |
+| ----------------------- | ----------------------------- |
+| id                      | serial                        |
+| batch_id                | FK → batches (cascade delete) |
+| status                  | enum: `usable`, `damaged`     |
+| created_at / updated_at | timestamptz                   |
+| created_by / updated_by | FK → users (nullable)         |
+
+**Generate flow:** admin picks SKU + manufacturing unit → API creates one `batch` with a unique `batch_number` and inserts `capacity` `product` rows (all `usable`) in a single transaction. UI shows a message like `Generating <capacity> <skuName> with a unique batch Id.`
+
+### Admin UI
+
+After **Login as Admin**, the dashboard links to:
+
+| Tab                | Route                  | Actions                             |
+| ------------------ | ---------------------- | ----------------------------------- |
+| Users              | `/users`               | Search + add user                   |
+| SKU                | `/skus`                | List + add SKU form                 |
+| Manufacturing Unit | `/manufacturing-units` | List + add unit form                |
+| Products           | `/products`            | List + generate (select SKU + unit) |
 
 ## Pre-commit checks
 
@@ -110,10 +173,16 @@ npm run precommit
 
 ## API
 
-| Method             | Path                  | Description                     |
-| ------------------ | --------------------- | ------------------------------- |
-| `GET`              | `/api/health`         | Health + DB check               |
-| `GET/POST`         | `/api/users`          | List (`?q=`) / create user+role |
-| `GET/PATCH/DELETE` | `/api/users/:id`      | Read / update / delete user     |
-| `GET/POST`         | `/api/user-roles`     | List / assign roles             |
-| `GET/PATCH/DELETE` | `/api/user-roles/:id` | Read / update / delete role     |
+| Method             | Path                           | Description                                                  |
+| ------------------ | ------------------------------ | ------------------------------------------------------------ |
+| `GET`              | `/api/health`                  | Health + DB check                                            |
+| `GET/POST`         | `/api/users`                   | List (`?q=`) / create user+role                              |
+| `GET/PATCH/DELETE` | `/api/users/:id`               | Read / update / delete user                                  |
+| `GET/POST`         | `/api/user-roles`              | List / assign roles                                          |
+| `GET/PATCH/DELETE` | `/api/user-roles/:id`          | Read / update / delete role                                  |
+| `GET/POST`         | `/api/skus`                    | List / create SKU                                            |
+| `GET`              | `/api/skus/:id`                | Read SKU                                                     |
+| `GET/POST`         | `/api/manufacturing-units`     | List / create manufacturing unit                             |
+| `GET`              | `/api/manufacturing-units/:id` | Read manufacturing unit                                      |
+| `GET`              | `/api/products`                | List products (includes batch / SKU / unit info)             |
+| `POST`             | `/api/products/generate`       | Body: `sku_id`, `manufacturing_unit_id` → batch + N products |
