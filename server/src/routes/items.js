@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
-import { validateCreateItem, validateUpdateItem } from '../lib/items.js';
+import { validateCreateItem, validateUpdateItem, validateItemId } from '../lib/items.js';
 
 const router = Router();
 
@@ -17,10 +17,15 @@ router.get('/', async (_req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
+  const id = validateItemId(req.params.id);
+  if (!id.ok) {
+    return res.status(id.statusCode).json({ error: id.error });
+  }
+
   try {
     const { rows } = await query(
       'SELECT id, name, status, notes, created_at, updated_at FROM items WHERE id = $1',
-      [req.params.id]
+      [id.value]
     );
     if (!rows.length) {
       return res.status(404).json({ error: 'Item not found' });
@@ -55,6 +60,11 @@ router.post('/', async (req, res) => {
 });
 
 router.patch('/:id', async (req, res) => {
+  const id = validateItemId(req.params.id);
+  if (!id.ok) {
+    return res.status(id.statusCode).json({ error: id.error });
+  }
+
   const parsed = validateUpdateItem(req.body);
   if (!parsed.ok) {
     return res.status(parsed.statusCode).json({ error: parsed.error });
@@ -72,7 +82,7 @@ router.patch('/:id', async (req, res) => {
          updated_at = NOW()
        WHERE id = $4
        RETURNING id, name, status, notes, created_at, updated_at`,
-      [name, status, notes, req.params.id]
+      [name, status, notes, id.value]
     );
 
     if (!rows.length) {
@@ -86,8 +96,13 @@ router.patch('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
+  const id = validateItemId(req.params.id);
+  if (!id.ok) {
+    return res.status(id.statusCode).json({ error: id.error });
+  }
+
   try {
-    const { rowCount } = await query('DELETE FROM items WHERE id = $1', [req.params.id]);
+    const { rowCount } = await query('DELETE FROM items WHERE id = $1', [id.value]);
     if (!rowCount) {
       return res.status(404).json({ error: 'Item not found' });
     }
