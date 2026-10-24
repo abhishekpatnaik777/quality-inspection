@@ -9,7 +9,6 @@
     "dev:client": "npm run dev --prefix client",
     "install:all": "npm install && npm install --prefix server && npm install --prefix client",
     "db:up": "bash scripts/db-up.sh",
-    "db:down": "docker compose down",
     "db:migrate": "npm run migrate --prefix server"
   },
   "devDependencies": {
