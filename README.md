@@ -63,46 +63,46 @@ Core tables and relationships (audit `created_by` / `updated_by` FKs omitted for
 ```mermaid
 erDiagram
   users ||--o{ user_roles : has
-  users ||--o| user_supervisors : "QE assigned"
-  users ||--o{ user_supervisors : "supervises"
-  users ||--o{ inspections : "engineers"
+  users ||--o| user_supervisors : qe_assigned
+  users ||--o{ user_supervisors : supervises
+  users ||--o{ inspections : engineers
 
-  skus ||--o{ batches : "produced as"
-  manufacturing_units ||--o{ batches : "produces"
+  skus ||--o{ batches : produced_as
+  manufacturing_units ||--o{ batches : produces
   batches ||--o{ products : contains
-  products ||--o{ inspections : "inspected in"
+  products ||--o{ inspections : inspected_in
 
-  inspections ||--o{ ai_inspections : "has runs"
-  ai_inspections ||--o{ ai_inspection_predictions : "predicts"
-  inspections ||--o{ inspection_results : "confirmed defects"
-  ai_inspection_predictions ||--o| inspection_results : "may confirm"
-  users ||--o{ ai_inspection_predictions : "verifies"
+  inspections ||--o{ ai_inspections : has_runs
+  ai_inspections ||--o{ ai_inspection_predictions : predicts
+  inspections ||--o{ inspection_results : confirmed_defects
+  ai_inspection_predictions ||--o| inspection_results : may_confirm
+  users ||--o{ ai_inspection_predictions : verifies
 
   users {
     int id PK
     string name
-    string email UK
-    enum status
+    string email
+    string status
   }
 
   user_roles {
     int id PK
     int user_id FK
-    enum role
-    enum status
+    string role
+    string status
   }
 
   user_supervisors {
     int id PK
-    int user_id FK "QE unique"
+    int user_id FK
     int supervisor_id FK
-    enum status
+    string status
   }
 
   skus {
     int id PK
     string name
-    enum category
+    string category
     string model
   }
 
@@ -115,7 +115,7 @@ erDiagram
 
   batches {
     int id PK
-    string batch_number UK
+    string batch_number
     int sku_id FK
     int manufacturing_unit_id FK
     date manufacturing_date
@@ -131,32 +131,32 @@ erDiagram
     int user_id FK
     int product_id FK
     date inspection_date
-    enum status
+    string status
   }
 
   ai_inspections {
     int id PK
     int inspection_id FK
     string image_url
-    enum status
-    json raw_response
+    string status
+    string raw_response
   }
 
   ai_inspection_predictions {
     int id PK
     int ai_inspection_id FK
-    enum ai_defect_type
-    decimal confidence
-    enum status
-    enum final_defect_type
+    string ai_defect_type
+    float confidence
+    string status
+    string final_defect_type
     int verified_by FK
   }
 
   inspection_results {
     int id PK
     int inspection_id FK
-    int ai_inspection_prediction_id FK UK
-    enum defect_type
+    int ai_inspection_prediction_id FK
+    string defect_type
   }
 ```
 
