@@ -3,6 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import usersRouter from './routes/users.js';
 import userRolesRouter from './routes/userRoles.js';
+import skusRouter from './routes/skus.js';
+import manufacturingUnitsRouter from './routes/manufacturingUnits.js';
+import productsRouter from './routes/products.js';
 import { prisma } from './db/prisma.js';
 
 dotenv.config();
@@ -25,6 +28,9 @@ app.get('/api/health', async (_req, res) => {
 
 app.use('/api/users', usersRouter);
 app.use('/api/user-roles', userRolesRouter);
+app.use('/api/skus', skusRouter);
+app.use('/api/manufacturing-units', manufacturingUnitsRouter);
+app.use('/api/products', productsRouter);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext.jsx';
+import { useAuth } from '../auth/useAuth.js';
 import './HomePage.css';
 
 const ROLE_PICKER = {
@@ -22,6 +22,21 @@ const ROLE_PICKER = {
   },
 };
 
+// Share one in-flight request across React Strict Mode's double mount in dev.
+let healthInflight = null;
+
+function fetchHealth() {
+  if (!healthInflight) {
+    healthInflight = fetch('/api/health')
+      .then((res) => res.json())
+      .catch(() => ({ status: 'down', database: 'unknown' }))
+      .finally(() => {
+        healthInflight = null;
+      });
+  }
+  return healthInflight;
+}
+
 export default function HomePage() {
   const { isAuthenticated, isAdmin, login, logout, loginRoles, roleLabel, user } = useAuth();
   const [health, setHealth] = useState(null);
@@ -34,17 +49,10 @@ export default function HomePage() {
   useEffect(() => {
     let cancelled = false;
 
-    async function checkHealth() {
-      try {
-        const res = await fetch('/api/health');
-        const data = await res.json();
-        if (!cancelled) setHealth(data);
-      } catch {
-        if (!cancelled) setHealth({ status: 'down', database: 'unknown' });
-      }
-    }
+    fetchHealth().then((data) => {
+      if (!cancelled) setHealth(data);
+    });
 
-    checkHealth();
     return () => {
       cancelled = true;
     };
@@ -150,6 +158,15 @@ export default function HomePage() {
         <nav className="home-tabs" aria-label="Sections">
           <Link to="/users" className="home-tab">
             Users
+          </Link>
+          <Link to="/skus" className="home-tab">
+            SKU
+          </Link>
+          <Link to="/manufacturing-units" className="home-tab">
+            Manufacturing Unit
+          </Link>
+          <Link to="/products" className="home-tab">
+            Products
           </Link>
         </nav>
       ) : (
