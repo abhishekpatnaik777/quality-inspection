@@ -56,6 +56,110 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173).
 
+## Schema diagram
+
+Core tables and relationships (audit `created_by` / `updated_by` FKs omitted for clarity):
+
+```mermaid
+erDiagram
+  users ||--o{ user_roles : has
+  users ||--o| user_supervisors : "QE assigned"
+  users ||--o{ user_supervisors : "supervises"
+  users ||--o{ inspections : "engineers"
+
+  skus ||--o{ batches : "produced as"
+  manufacturing_units ||--o{ batches : "produces"
+  batches ||--o{ products : contains
+  products ||--o{ inspections : "inspected in"
+
+  inspections ||--o{ ai_inspections : "has runs"
+  ai_inspections ||--o{ ai_inspection_predictions : "predicts"
+  inspections ||--o{ inspection_results : "confirmed defects"
+  ai_inspection_predictions ||--o| inspection_results : "may confirm"
+  users ||--o{ ai_inspection_predictions : "verifies"
+
+  users {
+    int id PK
+    string name
+    string email UK
+    enum status
+  }
+
+  user_roles {
+    int id PK
+    int user_id FK
+    enum role
+    enum status
+  }
+
+  user_supervisors {
+    int id PK
+    int user_id FK "QE unique"
+    int supervisor_id FK
+    enum status
+  }
+
+  skus {
+    int id PK
+    string name
+    enum category
+    string model
+  }
+
+  manufacturing_units {
+    int id PK
+    string name
+    string location
+    int capacity
+  }
+
+  batches {
+    int id PK
+    string batch_number UK
+    int sku_id FK
+    int manufacturing_unit_id FK
+    date manufacturing_date
+  }
+
+  products {
+    int id PK
+    int batch_id FK
+  }
+
+  inspections {
+    int id PK
+    int user_id FK
+    int product_id FK
+    date inspection_date
+    enum status
+  }
+
+  ai_inspections {
+    int id PK
+    int inspection_id FK
+    string image_url
+    enum status
+    json raw_response
+  }
+
+  ai_inspection_predictions {
+    int id PK
+    int ai_inspection_id FK
+    enum ai_defect_type
+    decimal confidence
+    enum status
+    enum final_defect_type
+    int verified_by FK
+  }
+
+  inspection_results {
+    int id PK
+    int inspection_id FK
+    int ai_inspection_prediction_id FK UK
+    enum defect_type
+  }
+```
+
 ## Entities
 
 ### USER
