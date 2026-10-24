@@ -4,8 +4,6 @@ import { skuIdSchema } from './skus.js';
 import { manufacturingUnitIdSchema } from './manufacturingUnits.js';
 import { userIdSchema } from './users.js';
 
-export const PRODUCT_STATUSES = ['usable', 'damaged'];
-
 export const generateProductsSchema = z.object({
   sku_id: skuIdSchema,
   manufacturing_unit_id: manufacturingUnitIdSchema,

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import './UsersPage.css';
+import { inflightJson } from '../lib/inflightFetch.js';
 
 const emptyForm = {
   name: '',
@@ -18,27 +17,27 @@ export default function ManufacturingUnitsPage() {
   const [formError, setFormError] = useState(null);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let cancelled = false;
 
-    async function loadUnits() {
-      try {
-        const res = await fetch('/api/manufacturing-units', { signal: controller.signal });
-        if (!res.ok) throw new Error('Failed to load manufacturing units');
-        const data = await res.json();
+    inflightJson('GET /api/manufacturing-units', '/api/manufacturing-units', {
+      errorMessage: 'Failed to load manufacturing units',
+    })
+      .then((data) => {
+        if (cancelled) return;
         setUnits(data);
         setError(null);
-      } catch (err) {
-        if (err.name === 'AbortError') return;
+      })
+      .catch((err) => {
+        if (cancelled) return;
         setError(err.message || 'Unable to load manufacturing units');
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-    loadUnits();
-    return () => controller.abort();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function openModal() {
@@ -78,41 +77,50 @@ export default function ManufacturingUnitsPage() {
   }
 
   return (
-    <div className="users-page">
-      <header className="users-header">
+    <div className="page">
+      <header className="page-header">
         <div>
-          <Link to="/" className="back-link">
-            ← Dashboard
-          </Link>
-          <h1>Manufacturing Unit</h1>
+          <h1>Manufacturing units</h1>
           <p className="subtitle">
             {units.length} unit{units.length === 1 ? '' : 's'}
           </p>
         </div>
-        <button type="button" className="primary-btn" onClick={openModal}>
-          Add unit
-        </button>
+        <div className="page-header-actions">
+          <button type="button" className="primary-btn" onClick={openModal}>
+            Add unit
+          </button>
+        </div>
       </header>
 
       {error && <p className="error">{error}</p>}
 
       {loading ? (
-        <p className="muted">Loading manufacturing units…</p>
+        <p className="loading-state">Loading manufacturing units…</p>
       ) : units.length === 0 ? (
-        <p className="muted">No manufacturing units yet.</p>
+        <p className="empty-state">No manufacturing units yet.</p>
       ) : (
-        <ul className="user-list">
-          {units.map((unit) => (
-            <li key={unit.id} className="user-row">
-              <div className="user-meta">
-                <strong>{unit.name}</strong>
-                <span className="muted-line">
-                  {unit.location} · capacity {unit.capacity}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Location</th>
+                <th>Capacity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {units.map((unit) => (
+                <tr key={unit.id}>
+                  <td>
+                    <strong>{unit.name}</strong>
+                  </td>
+                  <td className="cell-muted">{unit.location}</td>
+                  <td className="cell-muted">{unit.capacity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {modalOpen && (

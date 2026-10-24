@@ -1,1 +1,10 @@
-npm run precommit
+#!/usr/bin/env sh
+set -e
+
+npm run format
+# Include any Prettier rewrites in this commit
+git add -u
+
+npm run lint
+npm run test
+npm run audit

@@ -1,19 +1,32 @@
 :root {
-  --bg: #f6f4ef;
+  --bg: #f8fafc;
   --surface: #ffffff;
-  --text: #1c1917;
-  --muted: #78716c;
-  --border: #e7e5e4;
-  --accent: #0f766e;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --accent: #2563eb;
+  --accent-soft: #eff6ff;
   --ok: #16a34a;
+  --ok-soft: #f0fdf4;
   --warn: #ca8a04;
+  --warn-soft: #fefce8;
   --bad: #dc2626;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  --bad-soft: #fef2f2;
+  --sidebar-width: 240px;
+  --topbar-height: 56px;
+  --radius: 10px;
+  --radius-lg: 12px;
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 16px 40px rgba(15, 23, 42, 0.12);
+  font-family:
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 40%), var(--bg);
+  background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -36,6 +49,11 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
+}
+
+a {
+  color: inherit;
 }

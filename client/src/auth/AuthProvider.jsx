@@ -29,6 +29,7 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(session?.role),
       isAdmin: session?.role === 'admin',
       isSupervisor: session?.role === 'supervisor',
+      isQualityEngineer: session?.role === 'quality_engineer',
       loginRoles: LOGIN_ROLES,
       login({ role, user = null }) {
         if (!LOGIN_ROLES.some((item) => item.value === role)) return;

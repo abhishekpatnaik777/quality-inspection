@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.js';
-import './HomePage.css';
+import AppShell from '../layout/AppShell.jsx';
 
 const ROLE_PICKER = {
   supervisor: {
@@ -22,41 +22,86 @@ const ROLE_PICKER = {
   },
 };
 
-// Share one in-flight request across React Strict Mode's double mount in dev.
-let healthInflight = null;
+const ADMIN_SHORTCUTS = [
+  { to: '/users', title: 'Users', description: 'Manage accounts and roles' },
+  { to: '/skus', title: 'SKUs', description: 'Product catalog models' },
+  {
+    to: '/manufacturing-units',
+    title: 'Manufacturing units',
+    description: 'Plant locations and capacity',
+  },
+  { to: '/products', title: 'Products', description: 'Generate and review batches' },
+];
 
-function fetchHealth() {
-  if (!healthInflight) {
-    healthInflight = fetch('/api/health')
-      .then((res) => res.json())
-      .catch(() => ({ status: 'down', database: 'unknown' }))
-      .finally(() => {
-        healthInflight = null;
-      });
-  }
-  return healthInflight;
+const ENGINEER_SHORTCUTS = [
+  { to: '/inspections', title: 'Start inspection', description: 'Begin a new quality check' },
+  { to: '/inspections/view', title: 'Inspections', description: 'Review past inspections' },
+];
+
+const SUPERVISOR_SHORTCUTS = [
+  {
+    to: '/supervisor/dashboard',
+    title: 'Dashboard',
+    description: 'Summary metrics over inspections logged by your team',
+  },
+  {
+    to: '/supervisor/inspections',
+    title: 'Team inspections',
+    description: 'Review logged inspections from your quality engineers',
+  },
+];
+
+function DashboardHome() {
+  const { isAdmin, isQualityEngineer, isSupervisor, roleLabel, user } = useAuth();
+  const shortcuts = isAdmin
+    ? ADMIN_SHORTCUTS
+    : isQualityEngineer
+      ? ENGINEER_SHORTCUTS
+      : isSupervisor
+        ? SUPERVISOR_SHORTCUTS
+        : [];
+  const greetingName = user?.name || roleLabel;
+
+  return (
+    <div className="page">
+      <header className="page-header">
+        <div>
+          <h1>Welcome{greetingName ? `, ${greetingName}` : ''}</h1>
+          <p className="subtitle">
+            {isAdmin
+              ? 'Manage catalog data and team accounts.'
+              : isQualityEngineer
+                ? 'Run inspections and verify AI predictions.'
+                : isSupervisor
+                  ? 'Review inspections logged by your quality engineers.'
+                  : 'No sections are available for this role yet.'}
+          </p>
+        </div>
+      </header>
+
+      {shortcuts.length > 0 ? (
+        <div className="card-grid">
+          {shortcuts.map((item) => (
+            <Link key={item.to} to={item.to} className="shortcut-card">
+              <strong>{item.title}</strong>
+              <span>{item.description}</span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="empty-state">No sections available for this role yet.</p>
+      )}
+    </div>
+  );
 }
 
-export default function HomePage() {
-  const { isAuthenticated, isAdmin, login, logout, loginRoles, roleLabel, user } = useAuth();
-  const [health, setHealth] = useState(null);
+function LoginHome() {
+  const { login, loginRoles } = useAuth();
   const [pickerRole, setPickerRole] = useState(null);
   const [candidates, setCandidates] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [pickerError, setPickerError] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetchHealth().then((data) => {
-      if (!cancelled) setHealth(data);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function openRolePicker(roleValue) {
     const copy = ROLE_PICKER[roleValue];
@@ -115,33 +160,15 @@ export default function HomePage() {
     login({ role: roleValue });
   }
 
-  const signedInLabel = user?.name ? `${roleLabel} (${user.name})` : roleLabel;
   const pickerCopy = pickerRole ? ROLE_PICKER[pickerRole] : null;
 
   return (
-    <div className="home">
-      <header className="home-header">
-        <div>
-          <p className="eyebrow">Quality Inspection</p>
-          <h1>{isAuthenticated ? 'Dashboard' : 'Welcome'}</h1>
-          <p className="subtitle">
-            {isAuthenticated ? `Signed in as ${signedInLabel}.` : 'Choose a role to continue.'}
-          </p>
-        </div>
-        <div className="home-header-actions">
-          <div className={`health ${health?.database === 'connected' ? 'ok' : 'bad'}`}>
-            <span className="dot" />
-            {health ? `API ${health.status} · DB ${health.database}` : 'Checking…'}
-          </div>
-          {isAuthenticated && (
-            <button type="button" className="logout-btn" onClick={logout}>
-              Log out
-            </button>
-          )}
-        </div>
-      </header>
+    <div className="login-page">
+      <div className="login-card">
+        <p className="eyebrow">Quality Inspection</p>
+        <h1>Sign in</h1>
+        <p className="subtitle">Choose a role to continue.</p>
 
-      {!isAuthenticated ? (
         <div className="login-actions" aria-label="Login options">
           {loginRoles.map((role) => (
             <button
@@ -154,24 +181,7 @@ export default function HomePage() {
             </button>
           ))}
         </div>
-      ) : isAdmin ? (
-        <nav className="home-tabs" aria-label="Sections">
-          <Link to="/users" className="home-tab">
-            Users
-          </Link>
-          <Link to="/skus" className="home-tab">
-            SKU
-          </Link>
-          <Link to="/manufacturing-units" className="home-tab">
-            Manufacturing Unit
-          </Link>
-          <Link to="/products" className="home-tab">
-            Products
-          </Link>
-        </nav>
-      ) : (
-        <p className="muted">No sections available for this role yet.</p>
-      )}
+      </div>
 
       {pickerCopy && (
         <div className="modal-backdrop" role="presentation" onClick={closeRolePicker}>
@@ -228,5 +238,19 @@ export default function HomePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function HomePage() {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <LoginHome />;
+  }
+
+  return (
+    <AppShell>
+      <DashboardHome />
+    </AppShell>
   );
 }
