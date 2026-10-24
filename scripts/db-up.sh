@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+# Prefer common local installs (Postgres.app, EnterpriseDB, Homebrew)
+if [[ -x /Applications/Postgres.app/Contents/Versions/latest/bin/psql ]]; then
+  export PATH="/Applications/Postgres.app/Contents/Versions/latest/bin:$PATH"
+fi
+if [[ -x /Library/PostgreSQL/18/bin/psql ]]; then
+  export PATH="/Library/PostgreSQL/18/bin:$PATH"
+fi
+if [[ -x /opt/homebrew/opt/postgresql@16/bin/psql ]]; then
+  export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"
+fi
+if [[ -x /usr/local/opt/postgresql@16/bin/psql ]]; then
+  export PATH="/usr/local/opt/postgresql@16/bin:$PATH"
+fi
+
+# Fallback: Docker Compose
+if ! command -v psql >/dev/null 2>&1; then
+  if command -v docker >/dev/null 2>&1; then
+    echo "No local psql found — starting PostgreSQL with Docker Compose…"
+    docker compose up -d
+    echo "Waiting for database health…"
+    for _ in $(seq 1 30); do
+      if docker compose exec -T db pg_isready -U postgres -d quality_inspection >/dev/null 2>&1; then
+        echo "Database is ready (Docker)."
+        echo "Connection: postgresql://postgres:postgres@127.0.0.1:5432/quality_inspection"
+        exit 0
+      fi
+      sleep 1
+    done
+    echo "Docker Postgres started but is not healthy yet. Check: docker compose logs db"
+    exit 1
+  fi
+
+  echo "Neither Docker nor local psql found."
+  echo "Open Postgres.app (or install Docker), then re-run: npm run db:up"
+  exit 1
+fi
+
+ENV_FILE="$ROOT/server/.env"
+if [[ -f "$ENV_FILE" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "$ENV_FILE"
+  set +a
+fi
+
+# Postgres.app default: current macOS user, no password, localhost:5432
+DEFAULT_USER="$(whoami)"
+DB_URL="${DATABASE_URL:-postgresql://${DEFAULT_USER}@127.0.0.1:5432/quality_inspection}"
+
+# Use '|' so an empty password does not shift fields
+IFS='|' read -r DB_HOST DB_PORT DB_USER DB_PASS DB_NAME < <(
+  python3 - "$DB_URL" <<'PY'
+import sys
+from urllib.parse import urlparse, unquote
+u = urlparse(sys.argv[1])
+parts = [
+  u.hostname or "127.0.0.1",
+  str(u.port or 5432),
+  unquote(u.username or ""),
+  unquote(u.password or ""),
+  (u.path or "/postgres").lstrip("/") or "postgres",
+]
+print("|".join(parts))
+PY
+)
+
+if [[ -z "$DB_USER" ]]; then
+  DB_USER="$DEFAULT_USER"
+fi
+
+export PGPASSWORD="${DB_PASS:-}"
+
+echo "Using psql: $(command -v psql)"
+echo "Checking PostgreSQL at ${DB_HOST}:${DB_PORT} as ${DB_USER}…"
+if ! pg_isready -h "$DB_HOST" -p "$DB_PORT" >/dev/null 2>&1; then
+  echo "PostgreSQL is not running."
+  echo "Open Postgres.app from Applications and click Start, then re-run: npm run db:up"
+  exit 1
+fi
+
+echo "Ensuring database '${DB_NAME}' exists…"
+if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -v ON_ERROR_STOP=1 -tAc \
+  "SELECT 1 FROM pg_database WHERE datname='${DB_NAME}'" | grep -q 1; then
+  psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -v ON_ERROR_STOP=1 \
+    -c "CREATE DATABASE ${DB_NAME};"
+  echo "Created database ${DB_NAME}."
+else
+  echo "Database ${DB_NAME} already exists."
+fi
+
+echo "Applying schema…"
+psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 \
+  -f "$ROOT/server/db/init.sql"
+
+echo "Database is ready."
+echo "DATABASE_URL=postgresql://${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
