@@ -1,8 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import itemsRouter from './routes/items.js';
-import { pool } from './db/pool.js';
+import usersRouter from './routes/users.js';
+import userRolesRouter from './routes/userRoles.js';
+import { prisma } from './db/prisma.js';
 
 dotenv.config();
 
@@ -15,14 +16,15 @@ app.use(express.json());
 
 app.get('/api/health', async (_req, res) => {
   try {
-    await pool.query('SELECT 1');
+    await prisma.$queryRaw`SELECT 1`;
     res.json({ status: 'ok', database: 'connected' });
   } catch {
     res.status(503).json({ status: 'degraded', database: 'disconnected' });
   }
 });
 
-app.use('/api/items', itemsRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/user-roles', userRolesRouter);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  active
+  inactive
+  invited
+
+  @@map("user_status")
+}
+
+enum UserRoleName {
+  quality_engineer
+  supervisor
+
+  @@map("user_role_name")
+}
+
+enum UserRoleStatus {
+  active
+  inactive
+
+  @@map("user_role_status")
+}
+
+enum UserSupervisorStatus {
+  active
+  inactive
+
+  @@map("user_supervisor_status")
+}
+
+model User {
+  id        Int        @id @default(autoincrement())
+  name      String     @db.VarChar(255)
+  email     String     @unique @db.VarChar(255)
+  status    UserStatus @default(active)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy Int?       @map("created_by")
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy Int?       @map("updated_by")
+
+  createdByUser User?  @relation("UserCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByUser User?  @relation("UserUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+  createdUsers  User[] @relation("UserCreatedBy")
+  updatedUsers  User[] @relation("UserUpdatedBy")
+
+  roles UserRole[]
+
+  rolesCreated     UserRole[] @relation("UserRoleCreatedBy")
+  rolesUpdated     UserRole[] @relation("UserRoleUpdatedBy")
+
+  qualityEngineerLink UserSupervisor?  @relation("QualityEngineerAssignment")
+  supervisedEngineers UserSupervisor[] @relation("SupervisorAssignment")
+
+  supervisorLinksCreated UserSupervisor[] @relation("UserSupervisorCreatedBy")
+  supervisorLinksUpdated UserSupervisor[] @relation("UserSupervisorUpdatedBy")
+
+  @@index([status], map: "idx_users_status")
+  @@index([email], map: "idx_users_email")
+  @@map("users")
+}
+
+model UserRole {
+  id        Int           @id @default(autoincrement())
+  userId    Int           @map("user_id")
+  role      UserRoleName
+  status    UserRoleStatus @default(active)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy Int?          @map("created_by")
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy Int?          @map("updated_by")
+
+  user          User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdByUser User? @relation("UserRoleCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByUser User? @relation("UserRoleUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@unique([userId, role])
+  @@index([userId], map: "idx_user_roles_user_id")
+  @@index([status], map: "idx_user_roles_status")
+  @@map("user_roles")
+}
+
+model UserSupervisor {
+  id           Int                  @id @default(autoincrement())
+  userId       Int                  @unique @map("user_id")
+  supervisorId Int                  @map("supervisor_id")
+  status       UserSupervisorStatus @default(active)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy    Int?                 @map("created_by")
+  updatedAt    DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy    Int?                 @map("updated_by")
+
+  qualityEngineer User  @relation("QualityEngineerAssignment", fields: [userId], references: [id], onDelete: Cascade)
+  supervisor      User  @relation("SupervisorAssignment", fields: [supervisorId], references: [id], onDelete: Restrict)
+  createdByUser   User? @relation("UserSupervisorCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  updatedByUser   User? @relation("UserSupervisorUpdatedBy", fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([supervisorId], map: "idx_user_supervisors_supervisor_id")
+  @@index([status], map: "idx_user_supervisors_status")
+  @@map("user_supervisors")
+}

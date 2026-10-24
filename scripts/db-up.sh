@@ -32,11 +32,9 @@ if [[ -f "$ENV_FILE" ]]; then
   set +a
 fi
 
-# Postgres.app default: current macOS user, no password, localhost:5432
 DEFAULT_USER="$(whoami)"
 DB_URL="${DATABASE_URL:-postgresql://${DEFAULT_USER}@127.0.0.1:5432/quality_inspection}"
 
-# Use '|' so an empty password does not shift fields
 IFS='|' read -r DB_HOST DB_PORT DB_USER DB_PASS DB_NAME < <(
   python3 - "$DB_URL" <<'PY'
 import sys
@@ -58,6 +56,7 @@ if [[ -z "$DB_USER" ]]; then
 fi
 
 export PGPASSWORD="${DB_PASS:-}"
+export DATABASE_URL="$DB_URL"
 
 echo "Using psql: $(command -v psql)"
 echo "Checking PostgreSQL at ${DB_HOST}:${DB_PORT} as ${DB_USER}…"
@@ -77,9 +76,8 @@ else
   echo "Database ${DB_NAME} already exists."
 fi
 
-echo "Applying schema…"
-psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 \
-  -f "$ROOT/server/db/init.sql"
+echo "Applying Prisma schema + seed…"
+npm run migrate --prefix server
 
 echo "Database is ready."
-echo "DATABASE_URL=postgresql://${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+echo "DATABASE_URL=${DATABASE_URL}"
