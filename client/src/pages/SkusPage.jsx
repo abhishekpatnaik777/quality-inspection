@@ -19,11 +19,11 @@ export default function SkusPage() {
   const [formError, setFormError] = useState(null);
 
   const load = useCallback(async () => {
-    setError(null);
     try {
       const res = await fetch('/api/skus');
       if (!res.ok) throw new Error('Failed to load SKUs');
       setSkus(await res.json());
+      setError(null);
     } catch (err) {
       setError(err.message || 'Unable to load SKUs');
     } finally {
