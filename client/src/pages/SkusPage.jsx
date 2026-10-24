@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SKU_CATEGORIES, categoryLabel } from '../lib/catalog.js';
 import './UsersPage.css';
@@ -18,22 +18,29 @@ export default function SkusPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch('/api/skus');
-      if (!res.ok) throw new Error('Failed to load SKUs');
-      setSkus(await res.json());
-      setError(null);
-    } catch (err) {
-      setError(err.message || 'Unable to load SKUs');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    const controller = new AbortController();
+
+    async function loadSkus() {
+      try {
+        const res = await fetch('/api/skus', { signal: controller.signal });
+        if (!res.ok) throw new Error('Failed to load SKUs');
+        const data = await res.json();
+        setSkus(data);
+        setError(null);
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        setError(err.message || 'Unable to load SKUs');
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadSkus();
+    return () => controller.abort();
+  }, []);
 
   function openModal() {
     setForm(emptyForm);
@@ -62,8 +69,8 @@ export default function SkusPage() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'Failed to create SKU');
+      setSkus((prev) => [...prev, body]);
       setModalOpen(false);
-      await load();
     } catch (err) {
       setFormError(err.message);
     } finally {
