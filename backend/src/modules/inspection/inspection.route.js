@@ -2,13 +2,14 @@ import { Router } from 'express';
 import { catchAsync } from '../../utils/catchAsync.js';
 import { requireQualityEngineer } from '../../middlewares/requireQualityEngineer.js';
 import { validateBody, validateParam } from '../../middlewares/validate.middleware.js';
+import { validateCreateInspection, validateInspectionId } from './inspection.validation.js';
 import {
-  validateCreateInspection,
-  validateInspectionId,
   validatePredictionId,
   validateVerifyPrediction,
-} from './inspection.validation.js';
+} from '../aiInspectionPrediction/aiInspectionPrediction.validation.js';
 import * as inspectionController from './inspection.controller.js';
+import * as aiInspectionController from '../aiInspection/aiInspection.controller.js';
+import * as aiInspectionPredictionController from '../aiInspectionPrediction/aiInspectionPrediction.controller.js';
 
 const router = Router();
 
@@ -26,13 +27,13 @@ router.post(
   validateBody(validateCreateInspection),
   catchAsync(inspectionController.createInspection)
 );
-router.post('/:id/ai-inspections', inspectionController.runAiInspection);
+router.post('/:id/ai-inspections', aiInspectionController.runAiInspection);
 router.post(
   '/:id/predictions/:predictionId/verify',
   validateParam(validateInspectionId),
   validateParam(validatePredictionId, 'predictionId'),
   validateBody(validateVerifyPrediction),
-  catchAsync(inspectionController.verifyPrediction)
+  catchAsync(aiInspectionPredictionController.verifyPrediction)
 );
 
 export default router;

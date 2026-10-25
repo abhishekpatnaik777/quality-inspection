@@ -1,15 +1,13 @@
-import { AiInspectionStatus } from '@prisma/client';
 import { ApiError, mapPrismaError } from '../../utils/apiError.js';
 import { DEFECT_TYPES, PHYSICAL_DEFECT_TYPES } from '../../constants/enums.js';
-import { absoluteFromPublicUrl, publicImageUrl } from '../../utils/uploads.js';
 import { findProductById } from '../product/product.repository.js';
 import {
-  serializeAiInspection,
-  serializeInspection,
-  serializePrediction,
-} from './inspection.serializer.js';
+  findSupervisedPredictions,
+  findSummaryFilterRows,
+  findSummaryMetricRows,
+} from '../aiInspectionPrediction/aiInspectionPrediction.repository.js';
+import { serializeInspection } from './inspection.serializer.js';
 import * as inspectionRepository from './inspection.repository.js';
-import { VisionError, predictDefectFromImage } from './vision.service.js';
 
 function requirePositiveInt(value, fieldName) {
   const num = Number(value);
@@ -96,7 +94,7 @@ export async function listSupervisedInspections(query) {
     return { items: [], inspectors, skus };
   }
 
-  const predictions = await inspectionRepository.findSupervisedPredictions({
+  const predictions = await findSupervisedPredictions({
     engineerIds,
     inspectorId,
     defectType,
@@ -175,8 +173,8 @@ export async function getSupervisedSummary(query) {
   };
 
   const [filterRows, metricRows] = await Promise.all([
-    inspectionRepository.findSummaryFilterRows(engineerIds),
-    inspectionRepository.findSummaryMetricRows(inspectionScope),
+    findSummaryFilterRows(engineerIds),
+    findSummaryMetricRows(inspectionScope),
   ]);
 
   const skuMap = new Map();
@@ -279,115 +277,5 @@ export async function getSupervisedSummary(query) {
     },
     skus,
     batches,
-  };
-}
-
-export async function runAiInspection({ inspectionId, filename, createdBy, updatedBy }) {
-  const inspection = await inspectionRepository.findInspectionRecord(inspectionId);
-  if (!inspection) {
-    throw new ApiError(404, 'Inspection not found');
-  }
-  if (inspection.status !== 'pending') {
-    throw new ApiError(400, 'Inspection is already finalized');
-  }
-
-  const imageUrl = publicImageUrl(filename);
-  const aiInspection = await inspectionRepository.createAiInspection({
-    inspectionId: inspection.id,
-    imageUrl,
-    status: 'processing',
-    createdBy,
-    updatedBy,
-  });
-
-  let predictionPayload;
-  try {
-    predictionPayload = await predictDefectFromImage(absoluteFromPublicUrl(imageUrl));
-  } catch (visionErr) {
-    console.error(visionErr);
-    const outOfCredits =
-      visionErr?.code === 'out_of_credits' || visionErr?.message === 'Out of credits';
-    const statusCode = outOfCredits
-      ? 429
-      : visionErr instanceof VisionError
-        ? visionErr.statusCode
-        : 502;
-    const errorMessage = outOfCredits
-      ? 'Out of credits'
-      : 'Vision model failed. Photo was saved; retry analysis or inspect manually.';
-
-    await inspectionRepository.markAiInspectionError(aiInspection.id, {
-      status: AiInspectionStatus.error,
-      rawResponse: {
-        error: String(visionErr.message || visionErr),
-        code: visionErr instanceof VisionError ? visionErr.code : 'vision_error',
-      },
-      updatedBy,
-    });
-
-    throw new ApiError(statusCode, errorMessage, {
-      ai_inspection_id: aiInspection.id,
-      image_url: imageUrl,
-    });
-  }
-
-  const updatedAi = await inspectionRepository.completeAiInspectionWithPredictions({
-    aiInspectionId: aiInspection.id,
-    predictions: predictionPayload.predictions,
-    rawResponse: predictionPayload.rawResponse,
-    createdBy,
-    updatedBy,
-  });
-
-  const labels = updatedAi.predictions
-    .map((prediction) => `${prediction.aiDefectType} (${prediction.confidence})`)
-    .join(', ');
-
-  return {
-    message: `AI predicted ${updatedAi.predictions.length} defect(s): ${labels}. Review each before saving.`,
-    ai_inspection: serializeAiInspection(updatedAi),
-    predictions: updatedAi.predictions.map(serializePrediction),
-  };
-}
-
-export async function verifyPrediction({
-  inspectionId,
-  predictionId,
-  action,
-  final_defect_type,
-  comment,
-  verified_by,
-  updated_by,
-}) {
-  const prediction = await inspectionRepository.findPredictionWithAiInspection(predictionId);
-
-  if (!prediction || prediction.aiInspection.inspectionId !== inspectionId) {
-    throw new ApiError(404, 'Prediction not found for this inspection');
-  }
-  if (prediction.status !== 'pending') {
-    throw new ApiError(400, 'Prediction is already verified');
-  }
-
-  const finalDefectType = action === 'approve' ? prediction.aiDefectType : final_defect_type;
-  const status = action === 'approve' ? 'approved' : 'overridden';
-  const actor = updated_by ?? verified_by;
-
-  const inspection = await inspectionRepository.verifyPredictionTransaction({
-    prediction,
-    inspectionId,
-    status,
-    finalDefectType,
-    comment,
-    verifiedBy: verified_by,
-    actor,
-    isPhysicalDefect: PHYSICAL_DEFECT_TYPES.includes(finalDefectType),
-  });
-
-  return {
-    message:
-      action === 'approve'
-        ? 'Prediction approved.'
-        : `Prediction overridden to ${finalDefectType}.`,
-    inspection: serializeInspection(inspection),
   };
 }

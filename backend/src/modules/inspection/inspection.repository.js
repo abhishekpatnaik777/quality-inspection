@@ -1,5 +1,7 @@
 import { prisma } from '../../config/database.js';
 import { inspectionDetailInclude } from './inspection.serializer.js';
+import { findPredictionsByInspectionId } from '../aiInspectionPrediction/aiInspectionPrediction.repository.js';
+import { findResultsByInspectionId } from '../inspectionResult/inspectionResult.repository.js';
 
 export async function findInspections(where = {}) {
   return prisma.inspection.findMany({
@@ -11,6 +13,13 @@ export async function findInspections(where = {}) {
 
 export async function findInspectionById(id) {
   return prisma.inspection.findUnique({
+    where: { id },
+    include: inspectionDetailInclude,
+  });
+}
+
+export async function findInspectionByIdWithClient(client, id) {
+  return client.inspection.findUnique({
     where: { id },
     include: inspectionDetailInclude,
   });
@@ -77,213 +86,13 @@ export async function findSkusForEngineers(engineerIds) {
   });
 }
 
-export async function findSupervisedPredictions({ engineerIds, inspectorId, defectType, skuId }) {
-  return prisma.aiInspectionPrediction.findMany({
-    where: {
-      status: { in: ['approved', 'overridden'] },
-      ...(defectType ? { finalDefectType: defectType } : {}),
-      aiInspection: {
-        inspection: {
-          userId: inspectorId ? inspectorId : { in: engineerIds },
-          ...(skuId
-            ? {
-                product: {
-                  batch: { skuId },
-                },
-              }
-            : {}),
-        },
-      },
-    },
-    include: {
-      aiInspection: {
-        include: {
-          inspection: {
-            include: {
-              engineer: true,
-              product: {
-                include: {
-                  batch: {
-                    include: { sku: true },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-    orderBy: [{ verifiedAt: 'desc' }, { id: 'desc' }],
-  });
-}
-
-export async function findSummaryFilterRows(engineerIds) {
-  return prisma.aiInspectionPrediction.findMany({
-    where: {
-      aiInspection: { inspection: { userId: { in: engineerIds } } },
-    },
-    select: {
-      aiInspection: {
-        select: {
-          inspection: {
-            select: {
-              product: {
-                select: {
-                  batch: {
-                    select: {
-                      id: true,
-                      batchNumber: true,
-                      skuId: true,
-                      sku: { select: { id: true, name: true } },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-}
-
-export async function findSummaryMetricRows(inspectionScope) {
-  return prisma.aiInspectionPrediction.findMany({
-    where: {
-      aiInspection: { inspection: inspectionScope },
-    },
-    select: {
-      status: true,
-      finalDefectType: true,
-      aiInspection: {
-        select: {
-          inspection: {
-            select: { id: true, productId: true },
-          },
-        },
-      },
-    },
-  });
-}
-
-export async function createAiInspection(data) {
-  return prisma.aiInspection.create({ data });
-}
-
-export async function markAiInspectionError(id, data) {
-  return prisma.aiInspection.update({
-    where: { id },
-    data,
-  });
-}
-
-export async function completeAiInspectionWithPredictions({
-  aiInspectionId,
-  predictions,
-  rawResponse,
-  createdBy,
-  updatedBy,
-}) {
-  return prisma.$transaction(async (tx) => {
-    await tx.aiInspectionPrediction.createMany({
-      data: predictions.map((prediction) => ({
-        aiInspectionId,
-        aiDefectType: prediction.aiDefectType,
-        confidence: prediction.confidence,
-        status: 'pending',
-        createdBy,
-        updatedBy,
-      })),
-    });
-
-    return tx.aiInspection.update({
-      where: { id: aiInspectionId },
-      data: {
-        status: 'awaiting_verification',
-        rawResponse,
-        updatedBy,
-      },
-      include: {
-        predictions: { orderBy: { id: 'asc' } },
-      },
-    });
-  });
-}
-
-export async function findPredictionWithAiInspection(predictionId) {
-  return prisma.aiInspectionPrediction.findUnique({
-    where: { id: predictionId },
-    include: { aiInspection: true },
-  });
-}
-
-export async function verifyPredictionTransaction({
-  prediction,
-  inspectionId,
-  status,
-  finalDefectType,
-  comment,
-  verifiedBy,
-  actor,
-  isPhysicalDefect,
-}) {
-  return prisma.$transaction(async (tx) => {
-    await tx.aiInspectionPrediction.update({
-      where: { id: prediction.id },
-      data: {
-        status,
-        finalDefectType,
-        comment,
-        verifiedBy,
-        verifiedAt: new Date(),
-        updatedBy: actor,
-      },
-    });
-
-    if (isPhysicalDefect) {
-      await tx.inspectionResult.create({
-        data: {
-          inspectionId,
-          aiInspectionPredictionId: prediction.id,
-          defectType: finalDefectType,
-          createdBy: actor,
-          updatedBy: actor,
-        },
-      });
-    }
-
-    const pendingForAi = await tx.aiInspectionPrediction.count({
-      where: {
-        aiInspectionId: prediction.aiInspectionId,
-        status: 'pending',
-      },
-    });
-    if (pendingForAi === 0) {
-      await tx.aiInspection.update({
-        where: { id: prediction.aiInspectionId },
-        data: { status: 'completed', updatedBy: actor },
-      });
-    }
-
-    const refreshed = await refreshInspectionOutcome(tx, inspectionId, actor);
-    if (refreshed) return refreshed;
-
-    return tx.inspection.findUnique({
-      where: { id: inspectionId },
-      include: inspectionDetailInclude,
-    });
-  });
-}
-
 export async function refreshInspectionOutcome(tx, inspectionId, updatedBy) {
-  const predictions = await tx.aiInspectionPrediction.findMany({
-    where: { aiInspection: { inspectionId } },
-  });
+  const predictions = await findPredictionsByInspectionId(tx, inspectionId);
 
   if (predictions.length === 0) return null;
   if (predictions.some((prediction) => prediction.status === 'pending')) return null;
 
-  const results = await tx.inspectionResult.findMany({ where: { inspectionId } });
+  const results = await findResultsByInspectionId(tx, inspectionId);
   const status = results.length > 0 ? 'fail' : 'pass';
 
   return tx.inspection.update({

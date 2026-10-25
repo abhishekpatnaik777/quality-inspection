@@ -6,7 +6,7 @@ export function buildBatchNumber({ skuId, manufacturingUnitId }) {
   const stamp = new Date()
     .toISOString()
     .replace(/[-:TZ.]/g, '')
-    .slice(0, 14);
+    .slice(0, 4);
   const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
   return `B-${skuId}-${manufacturingUnitId}-${stamp}-${suffix}`;
 }

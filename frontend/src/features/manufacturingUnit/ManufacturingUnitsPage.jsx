@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { inflightJson } from '../lib/inflightFetch.js';
+import { inflightJson } from '../../shared/api/inflightFetch.js';
 
 const emptyForm = {
   name: '',

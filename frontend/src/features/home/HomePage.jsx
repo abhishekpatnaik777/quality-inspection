@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../auth/useAuth.js';
-import AppShell from '../layout/AppShell.jsx';
+import { useAuth } from '../../auth/useAuth.js';
+import AppShell from '../../layout/AppShell.jsx';
 
 const ROLE_PICKER = {
   supervisor: {

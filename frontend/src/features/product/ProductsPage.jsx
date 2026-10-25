@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { inflightJson, sharedInflight } from '../lib/inflightFetch.js';
+import { inflightJson, sharedInflight } from '../../shared/api/inflightFetch.js';
 
 function loadProductsCatalog() {
   return sharedInflight('products-page-catalog', () =>

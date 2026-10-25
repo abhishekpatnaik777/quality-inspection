@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useAuth } from '../auth/useAuth.js';
-import { defectLabel } from '../lib/defects.js';
-import { inflightJson } from '../lib/inflightFetch.js';
+import { useAuth } from '../../auth/useAuth.js';
+import { inflightJson } from '../../shared/api/inflightFetch.js';
+import { defectLabel } from '../inspection/defects.js';
 
 function fetchSupervisedSummary({ supervisorId, skuId, batchId }) {
   const params = new URLSearchParams({ supervisor_id: String(supervisorId) });

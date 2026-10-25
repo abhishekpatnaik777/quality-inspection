@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { SKU_CATEGORIES, categoryLabel } from '../lib/catalog.js';
-import { inflightJson } from '../lib/inflightFetch.js';
+import { inflightJson } from '../../shared/api/inflightFetch.js';
+import { SKU_CATEGORIES, categoryLabel } from './skuLabels.js';
 
 const emptyForm = {
   name: '',

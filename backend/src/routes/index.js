@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../config/database.js';
-import { getGoogleAiApiKey, isMockVisionEnabled } from '../modules/inspection/vision.service.js';
+import { getGoogleAiApiKey, isMockVisionEnabled } from '../modules/aiInspection/vision.service.js';
 import userRouter from '../modules/user/user.route.js';
 import userRoleRouter from '../modules/userRole/userRole.route.js';
 import skuRouter from '../modules/sku/sku.route.js';

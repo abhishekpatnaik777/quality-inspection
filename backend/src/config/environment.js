@@ -13,7 +13,7 @@ export const env = {
     if (!apiKey || apiKey === PLACEHOLDER_GOOGLE_KEY) return null;
     return apiKey;
   })(),
-  googleVisionModel: process.env.GOOGLE_VISION_MODEL || 'gemini-2.0-flash',
+  googleVisionModel: process.env.GOOGLE_VISION_MODEL || 'gemini-3.8-flash',
   mockVision:
     String(process.env.MOCK_VISION ?? 'false')
       .trim()

@@ -12,3 +12,16 @@ export function roleLabel(value) {
 export function isValidUserRole(role) {
   return USER_ROLE_VALUES.includes(role);
 }
+
+export function userStatusBadge(status) {
+  switch (status) {
+    case 'active':
+      return 'badge badge-ok';
+    case 'inactive':
+      return 'badge badge-neutral';
+    case 'invited':
+      return 'badge badge-info';
+    default:
+      return 'badge badge-neutral';
+  }
+}

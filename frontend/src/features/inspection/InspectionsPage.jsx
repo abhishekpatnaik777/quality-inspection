@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/useAuth.js';
-import { inflightJson, sharedInflight } from '../lib/inflightFetch.js';
+import { useAuth } from '../../auth/useAuth.js';
+import { inflightJson, sharedInflight } from '../../shared/api/inflightFetch.js';
 
 function loadInspectionCatalog() {
   return sharedInflight('inspections-page-catalog', () =>

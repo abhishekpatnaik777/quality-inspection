@@ -3,7 +3,10 @@ import path from 'node:path';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 import { DEFECT_TYPES } from '../../constants/enums.js';
 import { env } from '../../config/environment.js';
-import { normalizeConfidence, normalizeDefectType } from './inspection.validation.js';
+import {
+  normalizeConfidence,
+  normalizeDefectType,
+} from '../aiInspectionPrediction/aiInspectionPrediction.validation.js';
 
 const SYSTEM_PROMPT = `You are a quality-inspection vision assistant.
 Inspect the product photo and list EVERY distinct defect you can identify.
@@ -14,6 +17,16 @@ If multiple defects are visible (for example both a dent and a scratch), return 
 If no defect is visible, return a single prediction with no_defect.
 Do not invent other categories.`;
 
+const MIME_BY_EXT = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+};
+
+let googleClient = null;
+
 export function getGoogleAiApiKey() {
   return env.googleAiApiKey;
 }
@@ -22,12 +35,22 @@ export function isMockVisionEnabled() {
   return env.mockVision;
 }
 
-function mimeFromPath(filePath) {
-  const ext = path.extname(filePath).toLowerCase();
-  if (ext === '.png') return 'image/png';
-  if (ext === '.webp') return 'image/webp';
-  if (ext === '.gif') return 'image/gif';
-  return 'image/jpeg';
+function getGoogleClient() {
+  const apiKey = getGoogleAiApiKey();
+  if (!apiKey) return null;
+  if (!googleClient) {
+    googleClient = new GoogleGenerativeAI(apiKey);
+  }
+  return googleClient;
+}
+
+async function prepareImageForVision(absolutePath) {
+  const buffer = await fs.readFile(absolutePath);
+  const ext = path.extname(absolutePath).toLowerCase();
+  return {
+    mimeType: MIME_BY_EXT[ext] || 'image/jpeg',
+    data: buffer.toString('base64'),
+  };
 }
 
 function extractRawPredictionList(raw) {
@@ -140,10 +163,9 @@ export async function predictDefectFromImage(absolutePath) {
     return finalizePredictions(mock);
   }
 
-  const bytes = await fs.readFile(absolutePath);
-  const mimeType = mimeFromPath(absolutePath);
+  const { mimeType, data } = await prepareImageForVision(absolutePath);
   const modelName = env.googleVisionModel;
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const genAI = getGoogleClient();
   const model = genAI.getGenerativeModel({
     model: modelName,
     systemInstruction: SYSTEM_PROMPT,
@@ -163,7 +185,7 @@ export async function predictDefectFromImage(absolutePath) {
       {
         inlineData: {
           mimeType,
-          data: bytes.toString('base64'),
+          data,
         },
       },
     ]);

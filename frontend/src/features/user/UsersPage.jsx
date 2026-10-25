@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { USER_ROLES, roleLabel } from '../lib/enums.js';
-import { fetchJson, inflightJson } from '../lib/inflightFetch.js';
-import { userStatusBadge } from '../lib/statusBadge.js';
+import { fetchJson, inflightJson } from '../../shared/api/inflightFetch.js';
+import { USER_ROLES, roleLabel, userStatusBadge } from './userLabels.js';
 
 const emptyForm = {
   name: '',

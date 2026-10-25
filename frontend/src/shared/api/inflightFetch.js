@@ -17,7 +17,7 @@ export function sharedInflight(key, factory) {
 }
 
 export async function fetchJson(url, { errorMessage = 'Request failed', ...init } = {}) {
-  const res = await fetch(url, init);
+  const res = await fetch(url, { cache: 'no-store', ...init });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || errorMessage);

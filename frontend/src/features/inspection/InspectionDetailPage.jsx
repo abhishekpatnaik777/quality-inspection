@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useAuth } from '../auth/useAuth.js';
+import { useAuth } from '../../auth/useAuth.js';
+import { inflightJson } from '../../shared/api/inflightFetch.js';
 import {
   AI_INSPECTION_STATUS_LABELS,
   DEFECT_TYPES,
@@ -8,13 +9,14 @@ import {
   defectLabel,
   inspectionStatusLabel,
   predictionStatusLabel,
-} from '../lib/defects.js';
-import { inflightJson } from '../lib/inflightFetch.js';
+} from './defects.js';
 import {
   aiInspectionStatusBadge,
   inspectionStatusBadge,
   predictionStatusBadge,
-} from '../lib/statusBadge.js';
+} from './statusBadge.js';
+
+const AI_POLL_INTERVAL_MS = 2000;
 
 function fetchInspection(id) {
   const url = `/api/inspections/${id}`;
@@ -31,6 +33,16 @@ function collectPendingPredictions(inspection) {
     }
   }
   return pending;
+}
+
+function hasProcessingAiRun(inspection) {
+  return (inspection?.ai_inspections ?? []).some((ai) => ai.status === 'processing');
+}
+
+function isOutOfCreditsError(ai) {
+  const code = ai?.raw_response?.code;
+  const message = ai?.raw_response?.error;
+  return code === 'out_of_credits' || message === 'Out of credits';
 }
 
 function formatDisplayDate(value) {
@@ -60,6 +72,7 @@ export default function InspectionDetailPage() {
   const [commentById, setCommentById] = useState({});
   const [verifyingId, setVerifyingId] = useState(null);
   const [aiRunStatusFilter, setAiRunStatusFilter] = useState('completed');
+  const shownVisionErrorIdsRef = useRef(new Set());
 
   function syncPendingFromInspection(data) {
     const pending = collectPendingPredictions(data);
@@ -73,6 +86,21 @@ export default function InspectionDetailPage() {
     });
   }
 
+  function notifyVisionErrors(data) {
+    for (const ai of data?.ai_inspections ?? []) {
+      if (ai.status !== 'error' || shownVisionErrorIdsRef.current.has(ai.id)) continue;
+      shownVisionErrorIdsRef.current.add(ai.id);
+      if (isOutOfCreditsError(ai)) {
+        setErrorModal({
+          title: 'Out of credits',
+          message: 'Out of credits',
+        });
+      } else {
+        setActionError('Vision model failed. Photo was saved; retry analysis or inspect manually.');
+      }
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -82,6 +110,11 @@ export default function InspectionDetailPage() {
         setInspection(data);
         syncPendingFromInspection(data);
         setError(null);
+        for (const ai of data?.ai_inspections ?? []) {
+          if (ai.status === 'error') {
+            shownVisionErrorIdsRef.current.add(ai.id);
+          }
+        }
       })
       .catch((err) => {
         if (cancelled) return;
@@ -96,9 +129,44 @@ export default function InspectionDetailPage() {
     };
   }, [inspectionId]);
 
+  const isAiProcessing = useMemo(() => hasProcessingAiRun(inspection), [inspection]);
+  const showAnalyzing = analyzing || isAiProcessing;
+
+  useEffect(() => {
+    if (!inspectionId || !isAiProcessing) return undefined;
+
+    let cancelled = false;
+
+    async function pollOnce() {
+      try {
+        const data = await fetchInspection(inspectionId);
+        if (cancelled) return;
+        setInspection(data);
+        syncPendingFromInspection(data);
+        if (!hasProcessingAiRun(data)) {
+          notifyVisionErrors(data);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setActionError(err.message || 'Failed to refresh inspection');
+      }
+    }
+
+    pollOnce();
+    const intervalId = setInterval(pollOnce, AI_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [inspectionId, isAiProcessing]);
+
   const canUpload = useMemo(
-    () => isQualityEngineer && inspection?.status === 'pending' && pendingPredictions.length === 0,
-    [isQualityEngineer, inspection, pendingPredictions]
+    () =>
+      isQualityEngineer &&
+      inspection?.status === 'pending' &&
+      pendingPredictions.length === 0 &&
+      !isAiProcessing,
+    [isQualityEngineer, inspection, pendingPredictions, isAiProcessing]
   );
 
   const canVerify = isQualityEngineer && pendingPredictions.length > 0;
@@ -292,31 +360,35 @@ export default function InspectionDetailPage() {
             </div>
           </dl>
 
-          {canUpload && (
+          {(canUpload || showAnalyzing) && (
             <section className="page-section">
               <h2>Upload photo</h2>
               <div className="card page-narrow">
-                <form className="form-stack" onSubmit={handleAnalyze}>
-                  <label>
-                    Unit photo
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                      required
-                      disabled={analyzing}
-                    />
-                  </label>
-                  <div className="form-actions">
-                    <button
-                      type="submit"
-                      className="primary-btn"
-                      disabled={analyzing || !imageFile}
-                    >
-                      {analyzing ? 'Analyzing with AI…' : 'Upload & analyze'}
-                    </button>
-                  </div>
-                </form>
+                {showAnalyzing && !canUpload ? (
+                  <p className="loading-state">Analyzing with AI…</p>
+                ) : (
+                  <form className="form-stack" onSubmit={handleAnalyze}>
+                    <label>
+                      Unit photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                        required
+                        disabled={showAnalyzing}
+                      />
+                    </label>
+                    <div className="form-actions">
+                      <button
+                        type="submit"
+                        className="primary-btn"
+                        disabled={showAnalyzing || !imageFile}
+                      >
+                        {showAnalyzing ? 'Analyzing with AI…' : 'Upload & analyze'}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </section>
           )}

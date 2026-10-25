@@ -1,21 +1,21 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { AuthProvider } from './auth/AuthProvider.jsx';
-import RequireAdmin from './auth/RequireAdmin.jsx';
-import RequireAuth from './auth/RequireAuth.jsx';
-import RequireInspectionAccess from './auth/RequireInspectionAccess.jsx';
-import RequireQualityEngineer from './auth/RequireQualityEngineer.jsx';
-import RequireSupervisor from './auth/RequireSupervisor.jsx';
-import AppShell from './layout/AppShell.jsx';
-import HomePage from './pages/HomePage.jsx';
-import UsersPage from './pages/UsersPage.jsx';
-import SkusPage from './pages/SkusPage.jsx';
-import ManufacturingUnitsPage from './pages/ManufacturingUnitsPage.jsx';
-import ProductsPage from './pages/ProductsPage.jsx';
-import InspectionsPage from './pages/InspectionsPage.jsx';
-import ViewInspectionsPage from './pages/ViewInspectionsPage.jsx';
-import InspectionDetailPage from './pages/InspectionDetailPage.jsx';
-import SupervisorDashboardPage from './pages/SupervisorDashboardPage.jsx';
-import SupervisorInspectionsPage from './pages/SupervisorInspectionsPage.jsx';
+import { AuthProvider } from '../auth/AuthProvider.jsx';
+import RequireAdmin from '../auth/RequireAdmin.jsx';
+import RequireAuth from '../auth/RequireAuth.jsx';
+import RequireInspectionAccess from '../auth/RequireInspectionAccess.jsx';
+import RequireQualityEngineer from '../auth/RequireQualityEngineer.jsx';
+import RequireSupervisor from '../auth/RequireSupervisor.jsx';
+import AppShell from '../layout/AppShell.jsx';
+import HomePage from '../features/home/HomePage.jsx';
+import UsersPage from '../features/user/UsersPage.jsx';
+import SkusPage from '../features/sku/SkusPage.jsx';
+import ManufacturingUnitsPage from '../features/manufacturingUnit/ManufacturingUnitsPage.jsx';
+import ProductsPage from '../features/product/ProductsPage.jsx';
+import InspectionsPage from '../features/inspection/InspectionsPage.jsx';
+import ViewInspectionsPage from '../features/inspection/ViewInspectionsPage.jsx';
+import InspectionDetailPage from '../features/inspection/InspectionDetailPage.jsx';
+import SupervisorDashboardPage from '../features/supervisor/SupervisorDashboardPage.jsx';
+import SupervisorInspectionsPage from '../features/supervisor/SupervisorInspectionsPage.jsx';
 
 export default function App() {
   return (

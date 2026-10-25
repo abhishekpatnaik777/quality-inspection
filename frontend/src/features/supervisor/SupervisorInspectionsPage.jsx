@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/useAuth.js';
-import { DEFECT_TYPES, defectLabel } from '../lib/defects.js';
-import { inflightJson } from '../lib/inflightFetch.js';
+import { useAuth } from '../../auth/useAuth.js';
+import { inflightJson } from '../../shared/api/inflightFetch.js';
+import { DEFECT_TYPES, defectLabel } from '../inspection/defects.js';
 
 function fetchSupervisedInspections({ supervisorId, defectType, inspectorId, skuId }) {
   const params = new URLSearchParams({ supervisor_id: String(supervisorId) });

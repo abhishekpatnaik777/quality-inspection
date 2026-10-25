@@ -7,6 +7,12 @@ Boilerplate full-stack app: **React (Vite)** + **Node.js (Express)** + **Postgre
 ```
 quality-inspection/
 ├── frontend/               # React frontend (Vite)
+│   └── src/
+│       ├── app/            # Route table
+│       ├── auth/           # Login + route guards
+│       ├── layout/         # App shell / nav
+│       ├── shared/         # API helper + shared styles
+│       └── features/       # Feature folders (user, sku, inspection, …)
 ├── backend/
 │   ├── prisma/             # Prisma schema, migrations, seed
 │   └── src/
@@ -15,14 +21,14 @@ quality-inspection/
 │       ├── config/         # Environment + Prisma client
 │       ├── constants/      # Shared enums
 │       ├── middlewares/    # Auth, validation, errors
-│       ├── modules/        # Feature modules (user, product, inspection, …)
+│       ├── modules/        # Feature modules (user, product, inspection, aiInspection, …)
 │       ├── routes/         # Aggregates module routers under /api
 │       └── utils/          # ApiError, uploads, helpers
 ├── scripts/                # DB setup helpers
 └── package.json            # Root scripts
 ```
 
-Each feature under `backend/src/modules/<entity>/` keeps its route, controller, service, repository, validation, and serializer together.
+Each feature under `backend/src/modules/<entity>/` keeps its route, controller, service, repository, validation, and serializer together. Frontend screens live under `frontend/src/features/<entity>/`.
 
 ## Prerequisites
 

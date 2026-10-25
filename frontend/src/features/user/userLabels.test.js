@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { USER_ROLE_VALUES, isValidUserRole, roleLabel } from './enums.js';
+import { USER_ROLE_VALUES, isValidUserRole, roleLabel } from './userLabels.js';
 
 describe('user role enums', () => {
   it('only allows quality_engineer and supervisor', () => {

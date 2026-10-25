@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.js';
-import { sharedInflight } from '../lib/inflightFetch.js';
+import { sharedInflight } from '../shared/api/inflightFetch.js';
 import './AppShell.css';
 
 const ADMIN_NAV = [

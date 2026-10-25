@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/useAuth.js';
-import { inspectionStatusLabel } from '../lib/defects.js';
-import { inflightJson } from '../lib/inflightFetch.js';
-import { inspectionStatusBadge } from '../lib/statusBadge.js';
+import { useAuth } from '../../auth/useAuth.js';
+import { inflightJson } from '../../shared/api/inflightFetch.js';
+import { inspectionStatusLabel } from './defects.js';
+import { inspectionStatusBadge } from './statusBadge.js';
 
 function fetchInspectionsForUser(userId) {
   const url = `/api/inspections?user_id=${userId}`;

@@ -38,16 +38,3 @@ export function predictionStatusBadge(status) {
       return 'badge badge-neutral';
   }
 }
-
-export function userStatusBadge(status) {
-  switch (status) {
-    case 'active':
-      return 'badge badge-ok';
-    case 'inactive':
-      return 'badge badge-neutral';
-    case 'invited':
-      return 'badge badge-info';
-    default:
-      return 'badge badge-neutral';
-  }
-}
