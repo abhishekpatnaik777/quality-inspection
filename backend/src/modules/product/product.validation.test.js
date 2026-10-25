@@ -16,4 +16,22 @@ describe('validateGenerateProducts', () => {
     assert.equal(result.value.sku_id, 1);
     assert.equal(result.value.manufacturing_unit_id, 2);
   });
+
+  it('defaults omitted manufacturing_date to a Date', () => {
+    const result = validateGenerateProducts({
+      sku_id: 1,
+      manufacturing_unit_id: 2,
+    });
+    assert.equal(result.ok, true);
+    assert.ok(result.value.manufacturing_date instanceof Date);
+  });
+
+  it('rejects an invalid manufacturing_date', () => {
+    const result = validateGenerateProducts({
+      sku_id: 1,
+      manufacturing_unit_id: 2,
+      manufacturing_date: 'not-a-date',
+    });
+    assert.equal(result.ok, false);
+  });
 });

@@ -11,7 +11,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "node prisma/seed.js",
     "migrate": "prisma migrate deploy && npm run prisma:seed",
-    "test": "node --test 'src/**/*.test.js'",
+    "test": "node --experimental-test-module-mocks --test 'src/**/*.test.js'",
     "lint": "oxlint src",
     "postinstall": "prisma generate"
   },

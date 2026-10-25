@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   normalizeConfidence,
   normalizeDefectType,
+  validatePredictionId,
   validateVerifyPrediction,
 } from './aiInspectionPrediction.validation.js';
 
@@ -49,5 +50,30 @@ describe('validateVerifyPrediction', () => {
       comment: 'looks right',
     });
     assert.equal(result.ok, true);
+  });
+
+  it('rejects an invalid action', () => {
+    const result = validateVerifyPrediction({
+      action: 'maybe',
+      verified_by: 1,
+    });
+    assert.equal(result.ok, false);
+  });
+
+  it('accepts override with final_defect_type', () => {
+    const result = validateVerifyPrediction({
+      action: 'override',
+      final_defect_type: 'scratch',
+      verified_by: 1,
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.value.final_defect_type, 'scratch');
+  });
+});
+
+describe('validatePredictionId', () => {
+  it('accepts positive ids and rejects invalid ones', () => {
+    assert.equal(validatePredictionId('5').ok, true);
+    assert.equal(validatePredictionId('0').ok, false);
   });
 });
