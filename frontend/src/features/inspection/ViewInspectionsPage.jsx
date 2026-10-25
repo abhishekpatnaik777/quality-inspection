@@ -15,12 +15,29 @@ function fetchInspectionsForUser(userId, page) {
   return inflightJson(`GET ${url}`, url, { errorMessage: 'Failed to load inspections' });
 }
 
-function formatDisplayDate(value) {
+function formatTimestamp(value) {
   if (!value) return '—';
-  const raw = String(value).slice(0, 10);
-  const [year, month, day] = raw.split('-');
-  if (!year || !month || !day) return value;
-  return `${day}/${month}/${year}`;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+function latestPredictionTimestamp(inspection) {
+  let latestMs = 0;
+  for (const ai of inspection.ai_inspections ?? []) {
+    for (const prediction of ai.predictions ?? []) {
+      const value = prediction.verified_at ?? prediction.updated_at;
+      const ms = value ? new Date(value).getTime() : NaN;
+      if (Number.isFinite(ms) && ms > latestMs) latestMs = ms;
+    }
+  }
+  if (latestMs > 0) return new Date(latestMs).toISOString();
+  return inspection.updated_at ?? null;
 }
 
 export default function ViewInspectionsPage() {
@@ -85,12 +102,12 @@ export default function ViewInspectionsPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Date</th>
+                  <th>Inspection</th>
                   <th>Product</th>
                   <th>SKU</th>
-                  <th>Defects</th>
                   <th>Status</th>
+                  <th>Total defects</th>
+                  <th>Timestamp</th>
                 </tr>
               </thead>
               <tbody>
@@ -111,14 +128,16 @@ export default function ViewInspectionsPage() {
                     <td>
                       <strong>#{inspection.id}</strong>
                     </td>
-                    <td className="cell-muted">{formatDisplayDate(inspection.inspection_date)}</td>
                     <td className="cell-muted">#{inspection.product_id}</td>
                     <td>{inspection.product?.sku_name ?? '—'}</td>
-                    <td className="cell-muted">{inspection.results?.length || 0}</td>
                     <td>
                       <span className={inspectionStatusBadge(inspection.status)}>
                         {inspectionStatusLabel(inspection.status)}
                       </span>
+                    </td>
+                    <td className="cell-muted">{inspection.results?.length || 0}</td>
+                    <td className="cell-muted">
+                      {formatTimestamp(latestPredictionTimestamp(inspection))}
                     </td>
                   </tr>
                 ))}
