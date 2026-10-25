@@ -357,11 +357,12 @@ After signing in as **Admin**:
 
 After signing in as **Quality Engineer**:
 
-| Tab               | Route                        | Actions                                            |
-| ----------------- | ---------------------------- | -------------------------------------------------- |
-| Start inspection  | `/inspections`               | Pick SKU/unit/batch/product, then open detail page |
-| View inspections  | `/inspections/view`          | List previous inspections                          |
-| Inspection detail | `/inspections/:inspectionId` | Upload photo, verify AI, view results              |
+| Tab               | Route                        | Actions                                                                       |
+| ----------------- | ---------------------------- | ----------------------------------------------------------------------------- |
+| Dashboard         | `/inspections/dashboard`     | Your product quality + AI verification KPIs and defect breakdown (no filters) |
+| Start inspection  | `/inspections`               | Pick SKU/unit/batch/product, then open detail page                            |
+| View inspections  | `/inspections/view`          | List previous inspections                                                     |
+| Inspection detail | `/inspections/:inspectionId` | Upload photo, verify AI, view results                                         |
 
 ### Supervisor UI
 
@@ -402,6 +403,7 @@ List `GET`s accept `page` / `limit` (default 20, max 100). Starting an inspectio
 | `GET`      | `/api/inspections/supervised/summary`                   | Supervisor dashboard KPIs (`?supervisor_id=`, optional `sku_id`, `batch_id`)                            |
 | `GET`      | `/api/inspections/overview`                             | All logged inspections (admin; paginated)                                                               |
 | `GET`      | `/api/inspections/overview/summary`                     | Org-wide dashboard KPIs (admin)                                                                         |
+| `GET`      | `/api/inspections/mine/summary`                         | Signed-in QE dashboard KPIs (`?user_id=`)                                                               |
 | `GET`      | `/api/inspections/:id`                                  | Inspection detail                                                                                       |
 | `POST`     | `/api/inspections/:id/ai-inspections`                   | multipart `image` + `created_by` → local save + async vision (202)                                      |
 | `POST`     | `/api/inspections/:id/predictions/:predictionId/verify` | approve / override prediction (`verified_by` required)                                                  |

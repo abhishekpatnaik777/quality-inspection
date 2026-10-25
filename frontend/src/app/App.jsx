@@ -14,6 +14,7 @@ import ProductsPage from '../features/product/ProductsPage.jsx';
 import InspectionsPage from '../features/inspection/InspectionsPage.jsx';
 import ViewInspectionsPage from '../features/inspection/ViewInspectionsPage.jsx';
 import InspectionDetailPage from '../features/inspection/InspectionDetailPage.jsx';
+import EngineerDashboardPage from '../features/inspection/EngineerDashboardPage.jsx';
 import SupervisorDashboardPage from '../features/supervisor/SupervisorDashboardPage.jsx';
 import SupervisorInspectionsPage from '../features/supervisor/SupervisorInspectionsPage.jsx';
 import AdminDashboardPage from '../features/admin/AdminDashboardPage.jsx';
@@ -78,6 +79,14 @@ export default function App() {
                 <RequireAdmin>
                   <ProductsPage />
                 </RequireAdmin>
+              }
+            />
+            <Route
+              path="/inspections/dashboard"
+              element={
+                <RequireQualityEngineer>
+                  <EngineerDashboardPage />
+                </RequireQualityEngineer>
               }
             />
             <Route

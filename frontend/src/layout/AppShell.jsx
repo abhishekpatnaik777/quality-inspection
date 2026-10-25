@@ -14,8 +14,9 @@ const ADMIN_NAV = [
 ];
 
 const ENGINEER_NAV = [
-  { to: '/inspections', label: 'Start inspection', end: true },
+  { to: '/inspections/dashboard', label: 'Dashboard' },
   { to: '/inspections/view', label: 'Inspections' },
+  { to: '/inspections', label: 'Start inspection', end: true },
 ];
 
 const SUPERVISOR_NAV = [

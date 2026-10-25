@@ -58,6 +58,7 @@ const {
   listOverviewInspections,
   getSupervisedSummary,
   getOverviewSummary,
+  getEngineerSummary,
 } = await import('./inspection.service.js');
 
 function baseInspection(overrides = {}) {
@@ -216,5 +217,24 @@ describe('getSupervisedSummary', () => {
     const result = await getSupervisedSummary({ supervisor_id: 1 });
     assert.equal(result.summary.total_inspected, 0);
     assert.deepEqual(result.skus, []);
+  });
+});
+
+describe('getEngineerSummary', () => {
+  it('scopes metric rows to the engineer userId', async () => {
+    findSummaryMetricRows.mock.resetCalls();
+    findSummaryMetricRows.mock.mockImplementation(async () => [
+      {
+        status: 'approved',
+        finalDefectType: 'scratch',
+        aiInspection: { inspection: { id: 1, productId: 10 } },
+      },
+    ]);
+
+    const { summary } = await getEngineerSummary({ user_id: 3 });
+    assert.deepEqual(findSummaryMetricRows.mock.calls[0].arguments[0], { userId: 3 });
+    assert.equal(summary.total_inspected, 1);
+    assert.equal(summary.total_predictions, 1);
+    assert.equal(summary.accepted, 1);
   });
 });

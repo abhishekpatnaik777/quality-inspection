@@ -338,3 +338,9 @@ export async function getOverviewSummary() {
   const metricRows = await findSummaryMetricRows({});
   return { summary: buildSummaryFromMetricRows(metricRows) };
 }
+
+export async function getEngineerSummary(query) {
+  const userId = requirePositiveInt(query.user_id, 'user_id');
+  const metricRows = await findSummaryMetricRows({ userId });
+  return { summary: buildSummaryFromMetricRows(metricRows) };
+}

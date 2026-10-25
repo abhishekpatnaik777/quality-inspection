@@ -25,6 +25,11 @@ export async function getOverviewSummary(req, res) {
   res.json(result);
 }
 
+export async function getEngineerSummary(req, res) {
+  const result = await inspectionService.getEngineerSummary(req.query);
+  res.json(result);
+}
+
 export async function getInspection(req, res) {
   const inspection = await inspectionService.getInspection(req.validatedParams.id);
   res.json(inspection);

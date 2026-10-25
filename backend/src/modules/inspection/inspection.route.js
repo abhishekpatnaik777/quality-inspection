@@ -29,6 +29,7 @@ router.get('/supervised', catchAsync(inspectionController.listSupervisedInspecti
 router.get('/supervised/summary', catchAsync(inspectionController.getSupervisedSummary));
 router.get('/overview', catchAsync(inspectionController.listOverviewInspections));
 router.get('/overview/summary', catchAsync(inspectionController.getOverviewSummary));
+router.get('/mine/summary', catchAsync(inspectionController.getEngineerSummary));
 router.get(
   '/:id',
   validateParam(validateInspectionId),
