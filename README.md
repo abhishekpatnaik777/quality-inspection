@@ -1,6 +1,6 @@
 # Quality Inspection
 
-Boilerplate full-stack app: **React (Vite)** + **Node.js (Express)** + **PostgreSQL (Prisma ORM)**.
+**AI Production Quality Assistant** — a system that helps manufacturing teams track production batches and quality inspections.
 
 ## Structure
 
@@ -12,7 +12,7 @@ quality-inspection/
 │       ├── auth/           # Login + route guards
 │       ├── layout/         # App shell / nav
 │       ├── shared/         # API helper + shared styles
-│       └── features/       # Feature folders (user, sku, inspection, …)
+│       └── features/       # Feature folders (admin, supervisor, user, sku, inspection, …)
 ├── backend/
 │   ├── prisma/             # Prisma schema, migrations, seed
 │   └── src/
@@ -21,14 +21,14 @@ quality-inspection/
 │       ├── config/         # Environment + Prisma client
 │       ├── constants/      # Shared enums
 │       ├── middlewares/    # Auth, validation, errors
-│       ├── modules/        # Feature modules (user, product, inspection, aiInspection, …)
+│       ├── modules/        # Feature modules (user, product, inspection, …)
 │       ├── routes/         # Aggregates module routers under /api
 │       └── utils/          # ApiError, uploads, helpers
 ├── scripts/                # DB setup helpers
 └── package.json            # Root scripts
 ```
 
-Each feature under `backend/src/modules/<entity>/` keeps its route, controller, service, repository, validation, and serializer together. Frontend screens live under `frontend/src/features/<entity>/`.
+Each feature under `backend/src/modules/<entity>/` keeps its route, controller, service, repository, validation, and serializer together. AI inspection code lives under `modules/inspection/` (aiInspection, aiInspectionPrediction, inspectionResult). Frontend screens live under `frontend/src/features/<entity>/`.
 
 ## Prerequisites
 
@@ -61,6 +61,7 @@ Schema source of truth: `backend/prisma/schema.prisma`.
 DATABASE_URL=postgresql://YOUR_MAC_USERNAME@127.0.0.1:5432/quality_inspection
 PORT=4000
 CLIENT_ORIGIN=http://localhost:5173
+GOOGLE_AI_API_KEY=googleAPIKey
 ```
 
 ## Develop
@@ -71,6 +72,11 @@ npm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173).
+
+```bash
+npm test                   # backend domain/utils/middleware unit tests + frontend Vitest
+npm run test --prefix backend
+```
 
 ## Schema diagram
 
@@ -266,7 +272,7 @@ Individual unit from a batch.
 
 **Generate flow:** admin picks SKU + manufacturing unit → API creates one `batch` with a unique `batch_number` and inserts `capacity` `product` rows in a single transaction. UI shows a message like `Generating <capacity> <skuName> with a unique batch Id.`
 
-Seed data resets the DB and loads 5 car-part SKUs (brake pads, oil filter, headlight, air filter, alloy wheel) and 5 manufacturing units in India (Pune, Chennai, Gurugram, Sanand, Bengaluru) with capacities 1–5, plus a sample batch/products per unit.
+Seed data resets the DB and loads 5 car-part SKUs (brake pads, oil filter, headlight, air filter, alloy wheel) and 5 manufacturing units in India (Pune, Chennai, Gurugram, Sanand, Bengaluru) with capacities 1–5, then creates batches/products for a random set of SKU × manufacturing-unit pairs (each batch gets `capacity` products).
 
 ### INSPECTION
 
@@ -292,7 +298,7 @@ Photo upload + vision run for an inspection. Images are stored under `backend/up
 | inspection_id           | FK → inspections                                                  |
 | image_url               | string (local `/uploads/...` path)                                |
 | status                  | enum: `processing`, `awaiting_verification`, `completed`, `error` |
-| raw_response            | JSON (OpenAI / mock payload)                                      |
+| raw_response            | JSON (Gemini / mock payload)                                      |
 | created_at / updated_at | timestamptz                                                       |
 | created_by / updated_by | FK → users (nullable)                                             |
 
@@ -326,24 +332,30 @@ Confirmed defect only (no row when final is `no_defect`). Created when a predict
 | created_at / updated_at     | timestamptz                   |
 | created_by / updated_by     | FK → users (nullable)         |
 
-**QE flow:** start inspection → upload photo → AI prediction shown → accept or override (+ comment) → save.
+**QE flow:** start inspection → upload photo → AI prediction shown → accept or override (+ comment) → save. Starting an inspection for the same product + QE reuses the latest existing inspection when one already exists.
 
-Set `GOOGLE_AI_API_KEY` in `backend/.env` for real Google Gemini vision calls (replace the `googleAPIKey` placeholder). Optional: `GOOGLE_VISION_MODEL` (default `gemini-2.0-flash`). The placeholder value is ignored. Without a real key (or with `MOCK_VISION=true`) the API returns mock dent/scratch predictions so local UI still works.
+Set `GOOGLE_AI_API_KEY` in `backend/.env` for real Google Gemini vision calls (replace the `googleAPIKey` placeholder). Optional: `GOOGLE_VISION_MODEL` (default `gemini-3.8-flash`). The placeholder value is ignored. Without a real key (or with `MOCK_VISION=true`) the API returns mock dent/scratch predictions so local UI still works.
+
+### Sign in
+
+On `/`, choose a **role**, then (for supervisor / quality engineer) a **user**, then **Login**. Admin does not pick a user.
 
 ### Admin UI
 
-After **Login as Admin**, the dashboard links to:
+After signing in as **Admin**:
 
-| Tab                | Route                  | Actions                             |
-| ------------------ | ---------------------- | ----------------------------------- |
-| Users              | `/users`               | Search + add user                   |
-| SKU                | `/skus`                | List + add SKU form                 |
-| Manufacturing Unit | `/manufacturing-units` | List + add unit form                |
-| Products           | `/products`            | List + generate (select SKU + unit) |
+| Tab                | Route                  | Actions                                                                           |
+| ------------------ | ---------------------- | --------------------------------------------------------------------------------- |
+| Dashboard          | `/admin/dashboard`     | Org-wide product quality + AI verification KPIs and defect breakdown (no filters) |
+| Inspections        | `/admin/inspections`   | All logged inspections (paginated; no filters)                                    |
+| Users              | `/users`               | Search + add user                                                                 |
+| SKU                | `/skus`                | List + add SKU form                                                               |
+| Manufacturing Unit | `/manufacturing-units` | List + add unit form                                                              |
+| Products           | `/products`            | List + generate (select SKU + unit)                                               |
 
 ### Quality engineer UI
 
-After **Login as Quality Engineer**, the dashboard links to:
+After signing in as **Quality Engineer**:
 
 | Tab               | Route                        | Actions                                            |
 | ----------------- | ---------------------------- | -------------------------------------------------- |
@@ -353,12 +365,12 @@ After **Login as Quality Engineer**, the dashboard links to:
 
 ### Supervisor UI
 
-After **Login as Supervisor**, the dashboard links to:
+After signing in as **Supervisor** (team-scoped to QEs reporting to that supervisor):
 
-| Tab              | Route                     | Actions                                                                                                                  |
-| ---------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Dashboard        | `/supervisor/dashboard`   | Products inspected, predictions, pass/fail, inspection defect rate, AI acceptance, defect table; filter by SKU and batch |
-| Team inspections | `/supervisor/inspections` | Thumbnail, final defect, inspector, timestamp, AI accepted/overridden; filter by defect type, inspector, and SKU         |
+| Tab              | Route                     | Actions                                                                                                                                                                                                   |
+| ---------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dashboard        | `/supervisor/dashboard`   | Products inspected, predictions, defect rate, AI acceptance, defect table; filter by SKU and batch (Reset clears filters). Clicking a defect-type row opens Team inspections with that filter.            |
+| Team inspections | `/supervisor/inspections` | Columns: Inspection, Product, SKU, Status, Total defects, Quality engineer, Timestamp; filter by SKU, defect type, inspector (Reset available). Supports `?defect_type=` / `?sku_id=` from the dashboard. |
 
 ## Pre-commit checks
 
@@ -366,7 +378,7 @@ A Husky **pre-commit** hook runs automatically before every commit:
 
 1. **Format** — `prettier --write` (auto-formats, then re-stages changes)
 2. **Lint** — `oxlint` (frontend + backend)
-3. **Unit tests** — Node test runner (backend) + Vitest (frontend)
+3. **Unit tests** — backend domain/utils/middleware tests (Node test runner) + Vitest (frontend)
 4. **Security audit** — `npm audit` (root, backend, frontend; fails on high+)
 
 ```bash
@@ -375,17 +387,31 @@ npm run precommit
 
 ## API
 
+List `GET`s accept `page` / `limit` (default 20, max 100). Starting an inspection (`user_id`), uploading a photo (`created_by`), and verifying a prediction (`verified_by`) require an active quality engineer.
+
 | Method     | Path                                                    | Description                                                                                             |
 | ---------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `GET`      | `/api/health`                                           | Health + DB check                                                                                       |
-| `GET/POST` | `/api/users`                                            | List (`?q=`) / create user+role                                                                         |
+| `GET/POST` | `/api/users`                                            | List (`?q=`, optional `role=`) / create user+role                                                       |
 | `GET/POST` | `/api/skus`                                             | List / create SKU                                                                                       |
 | `GET/POST` | `/api/manufacturing-units`                              | List / create manufacturing unit                                                                        |
 | `GET`      | `/api/products`                                         | List products (includes batch / SKU / unit info)                                                        |
 | `POST`     | `/api/products/generate`                                | Body: `sku_id`, `manufacturing_unit_id` → batch + N products                                            |
-| `GET/POST` | `/api/inspections`                                      | List (`?user_id=`) / start inspection                                                                   |
+| `GET/POST` | `/api/inspections`                                      | List (`?user_id=`) / start inspection (reuses latest for same product+QE when present)                  |
 | `GET`      | `/api/inspections/supervised`                           | Team inspections for a supervisor (`?supervisor_id=`, optional `defect_type`, `inspector_id`, `sku_id`) |
 | `GET`      | `/api/inspections/supervised/summary`                   | Supervisor dashboard KPIs (`?supervisor_id=`, optional `sku_id`, `batch_id`)                            |
+| `GET`      | `/api/inspections/overview`                             | All logged inspections (admin; paginated)                                                               |
+| `GET`      | `/api/inspections/overview/summary`                     | Org-wide dashboard KPIs (admin)                                                                         |
 | `GET`      | `/api/inspections/:id`                                  | Inspection detail                                                                                       |
-| `POST`     | `/api/inspections/:id/ai-inspections`                   | multipart `image` → local save + vision prediction                                                      |
-| `POST`     | `/api/inspections/:id/predictions/:predictionId/verify` | approve / override prediction                                                                           |
+| `POST`     | `/api/inspections/:id/ai-inspections`                   | multipart `image` + `created_by` → local save + async vision (202)                                      |
+| `POST`     | `/api/inspections/:id/predictions/:predictionId/verify` | approve / override prediction (`verified_by` required)                                                  |
+
+## Decisions
+
+1. Used gemini-3.8-flash model for image analysis
+
+## Limitations
+
+1. Multiple AI suggestions for one product is not possible.
+2. User authentication is not added.
+3.
