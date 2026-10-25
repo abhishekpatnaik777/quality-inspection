@@ -33,34 +33,45 @@ export async function findPredictionsByInspectionId(tx, inspectionId) {
   });
 }
 
-export async function findSupervisedPredictions({ engineerIds, inspectorId, defectType, skuId }) {
-  return prisma.aiInspectionPrediction.findMany({
-    where: {
-      status: { in: ['approved', 'overridden'] },
-      ...(defectType ? { finalDefectType: defectType } : {}),
-      aiInspection: {
-        inspection: {
-          userId: inspectorId ? inspectorId : { in: engineerIds },
-          ...(skuId
-            ? {
-                product: {
-                  batch: { skuId },
-                },
-              }
-            : {}),
-        },
+export async function findSupervisedPredictions({
+  engineerIds,
+  inspectorId,
+  defectType,
+  skuId,
+  skip,
+  take,
+}) {
+  const where = {
+    status: { in: ['approved', 'overridden'] },
+    ...(defectType ? { finalDefectType: defectType } : {}),
+    aiInspection: {
+      inspection: {
+        userId: inspectorId ? inspectorId : { in: engineerIds },
+        ...(skuId
+          ? {
+              product: {
+                batch: { skuId },
+              },
+            }
+          : {}),
       },
     },
-    include: {
-      aiInspection: {
-        include: {
-          inspection: {
-            include: {
-              engineer: true,
-              product: {
-                include: {
-                  batch: {
-                    include: { sku: true },
+  };
+
+  const [items, total] = await Promise.all([
+    prisma.aiInspectionPrediction.findMany({
+      where,
+      include: {
+        aiInspection: {
+          include: {
+            inspection: {
+              include: {
+                engineer: true,
+                product: {
+                  include: {
+                    batch: {
+                      include: { sku: true },
+                    },
                   },
                 },
               },
@@ -68,9 +79,14 @@ export async function findSupervisedPredictions({ engineerIds, inspectorId, defe
           },
         },
       },
-    },
-    orderBy: [{ verifiedAt: 'desc' }, { id: 'desc' }],
-  });
+      orderBy: [{ verifiedAt: 'desc' }, { id: 'desc' }],
+      skip,
+      take,
+    }),
+    prisma.aiInspectionPrediction.count({ where }),
+  ]);
+
+  return { items, total };
 }
 
 export async function findSummaryFilterRows(engineerIds) {

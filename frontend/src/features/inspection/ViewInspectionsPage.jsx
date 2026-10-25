@@ -2,11 +2,16 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth.js';
 import { inflightJson } from '../../shared/api/inflightFetch.js';
+import { DEFAULT_PAGE_SIZE, withPaginationParams } from '../../shared/api/pagination.js';
+import PaginationBar from '../../shared/ui/PaginationBar.jsx';
 import { inspectionStatusLabel } from './defects.js';
 import { inspectionStatusBadge } from './statusBadge.js';
 
-function fetchInspectionsForUser(userId) {
-  const url = `/api/inspections?user_id=${userId}`;
+function fetchInspectionsForUser(userId, page) {
+  const url = withPaginationParams(`/api/inspections?user_id=${userId}`, {
+    page,
+    limit: DEFAULT_PAGE_SIZE,
+  });
   return inflightJson(`GET ${url}`, url, { errorMessage: 'Failed to load inspections' });
 }
 
@@ -22,6 +27,8 @@ export default function ViewInspectionsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [inspections, setInspections] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -36,10 +43,12 @@ export default function ViewInspectionsPage() {
       return undefined;
     }
 
-    fetchInspectionsForUser(engineerId)
+    setLoading(true);
+    fetchInspectionsForUser(engineerId, page)
       .then((data) => {
         if (cancelled) return;
-        setInspections(data);
+        setInspections(data.items ?? []);
+        setTotal(Number(data.total ?? 0));
         setError(null);
       })
       .catch((err) => {
@@ -53,7 +62,7 @@ export default function ViewInspectionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [engineerId]);
+  }, [engineerId, page]);
 
   return (
     <div className="page">
@@ -71,50 +80,59 @@ export default function ViewInspectionsPage() {
       ) : inspections.length === 0 ? (
         <p className="empty-state">No inspections yet.</p>
       ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Date</th>
-                <th>Product</th>
-                <th>SKU</th>
-                <th>Defects</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inspections.map((inspection) => (
-                <tr
-                  key={inspection.id}
-                  className="table-row-clickable"
-                  tabIndex={0}
-                  role="link"
-                  onClick={() => navigate(`/inspections/${inspection.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      navigate(`/inspections/${inspection.id}`);
-                    }
-                  }}
-                >
-                  <td>
-                    <strong>#{inspection.id}</strong>
-                  </td>
-                  <td className="cell-muted">{formatDisplayDate(inspection.inspection_date)}</td>
-                  <td className="cell-muted">#{inspection.product_id}</td>
-                  <td>{inspection.product?.sku_name ?? '—'}</td>
-                  <td className="cell-muted">{inspection.results?.length || 0}</td>
-                  <td>
-                    <span className={inspectionStatusBadge(inspection.status)}>
-                      {inspectionStatusLabel(inspection.status)}
-                    </span>
-                  </td>
+        <>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Date</th>
+                  <th>Product</th>
+                  <th>SKU</th>
+                  <th>Defects</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {inspections.map((inspection) => (
+                  <tr
+                    key={inspection.id}
+                    className="table-row-clickable"
+                    tabIndex={0}
+                    role="link"
+                    onClick={() => navigate(`/inspections/${inspection.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigate(`/inspections/${inspection.id}`);
+                      }
+                    }}
+                  >
+                    <td>
+                      <strong>#{inspection.id}</strong>
+                    </td>
+                    <td className="cell-muted">{formatDisplayDate(inspection.inspection_date)}</td>
+                    <td className="cell-muted">#{inspection.product_id}</td>
+                    <td>{inspection.product?.sku_name ?? '—'}</td>
+                    <td className="cell-muted">{inspection.results?.length || 0}</td>
+                    <td>
+                      <span className={inspectionStatusBadge(inspection.status)}>
+                        {inspectionStatusLabel(inspection.status)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <PaginationBar
+            page={page}
+            limit={DEFAULT_PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+            disabled={loading}
+          />
+        </>
       )}
     </div>
   );

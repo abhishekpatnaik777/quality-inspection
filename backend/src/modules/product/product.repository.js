@@ -1,11 +1,17 @@
 import { prisma } from '../../config/database.js';
 import { productListInclude } from './product.serializer.js';
 
-export async function findAllProducts() {
-  return prisma.product.findMany({
-    include: productListInclude,
-    orderBy: { id: 'asc' },
-  });
+export async function findAllProducts({ skip, take } = {}) {
+  const [items, total] = await Promise.all([
+    prisma.product.findMany({
+      include: productListInclude,
+      orderBy: { id: 'asc' },
+      skip,
+      take,
+    }),
+    prisma.product.count(),
+  ]);
+  return { items, total };
 }
 
 export async function findProductById(id) {

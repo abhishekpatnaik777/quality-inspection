@@ -1,7 +1,7 @@
 import { prisma } from '../../config/database.js';
 import { userListInclude } from './user.serializer.js';
 
-export async function findUsers({ search = '', roleFilter = '' } = {}) {
+function buildUserWhere({ search = '', roleFilter = '' } = {}) {
   const where = {};
 
   if (search) {
@@ -20,11 +20,24 @@ export async function findUsers({ search = '', roleFilter = '' } = {}) {
     };
   }
 
-  return prisma.user.findMany({
-    where,
-    include: userListInclude,
-    orderBy: { id: 'asc' },
-  });
+  return where;
+}
+
+export async function findUsers({ search = '', roleFilter = '', skip, take } = {}) {
+  const where = buildUserWhere({ search, roleFilter });
+
+  const [items, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      include: userListInclude,
+      orderBy: { id: 'asc' },
+      skip,
+      take,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return { items, total };
 }
 
 export async function findUserById(id) {

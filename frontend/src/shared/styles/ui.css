@@ -191,6 +191,19 @@
   width: 100%;
 }
 
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.pagination-label {
+  color: var(--text-muted, #64748b);
+  font-size: 0.9rem;
+}
+
 /* Cards */
 .card {
   background: var(--surface);

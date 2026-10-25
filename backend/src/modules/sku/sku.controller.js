@@ -1,7 +1,7 @@
 import * as skuService from './sku.service.js';
 
-export async function listSkus(_req, res) {
-  const skus = await skuService.listSkus();
+export async function listSkus(req, res) {
+  const skus = await skuService.listSkus(req.query);
   res.json(skus);
 }
 

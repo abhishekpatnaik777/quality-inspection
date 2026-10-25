@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { inflightJson } from '../../shared/api/inflightFetch.js';
+import { DEFAULT_PAGE_SIZE, withPaginationParams } from '../../shared/api/pagination.js';
+import PaginationBar from '../../shared/ui/PaginationBar.jsx';
 
 const emptyForm = {
   name: '',
@@ -9,22 +11,31 @@ const emptyForm = {
 
 export default function ManufacturingUnitsPage() {
   const [units, setUnits] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    const url = withPaginationParams('/api/manufacturing-units', {
+      page,
+      limit: DEFAULT_PAGE_SIZE,
+    });
 
-    inflightJson('GET /api/manufacturing-units', '/api/manufacturing-units', {
+    inflightJson(`GET ${url}`, url, {
       errorMessage: 'Failed to load manufacturing units',
     })
       .then((data) => {
         if (cancelled) return;
-        setUnits(data);
+        setUnits(data.items ?? []);
+        setTotal(Number(data.total ?? 0));
         setError(null);
       })
       .catch((err) => {
@@ -38,7 +49,7 @@ export default function ManufacturingUnitsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page, reloadToken]);
 
   function openModal() {
     setForm(emptyForm);
@@ -67,8 +78,8 @@ export default function ManufacturingUnitsPage() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'Failed to create manufacturing unit');
-      setUnits((prev) => [...prev, body]);
       setModalOpen(false);
+      setReloadToken((n) => n + 1);
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -82,7 +93,7 @@ export default function ManufacturingUnitsPage() {
         <div>
           <h1>Manufacturing units</h1>
           <p className="subtitle">
-            {units.length} unit{units.length === 1 ? '' : 's'}
+            {total} unit{total === 1 ? '' : 's'}
           </p>
         </div>
         <div className="page-header-actions">
@@ -99,28 +110,37 @@ export default function ManufacturingUnitsPage() {
       ) : units.length === 0 ? (
         <p className="empty-state">No manufacturing units yet.</p>
       ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Location</th>
-                <th>Capacity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {units.map((unit) => (
-                <tr key={unit.id}>
-                  <td>
-                    <strong>{unit.name}</strong>
-                  </td>
-                  <td className="cell-muted">{unit.location}</td>
-                  <td className="cell-muted">{unit.capacity}</td>
+        <>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Location</th>
+                  <th>Capacity</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {units.map((unit) => (
+                  <tr key={unit.id}>
+                    <td>
+                      <strong>{unit.name}</strong>
+                    </td>
+                    <td className="cell-muted">{unit.location}</td>
+                    <td className="cell-muted">{unit.capacity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <PaginationBar
+            page={page}
+            limit={DEFAULT_PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+            disabled={loading}
+          />
+        </>
       )}
 
       {modalOpen && (

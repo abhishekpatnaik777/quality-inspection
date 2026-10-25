@@ -1,10 +1,16 @@
 import { prisma } from '../../config/database.js';
 
-export async function findAllUserRoles() {
-  return prisma.userRole.findMany({
-    include: { user: true },
-    orderBy: { id: 'asc' },
-  });
+export async function findAllUserRoles({ skip, take } = {}) {
+  const [items, total] = await Promise.all([
+    prisma.userRole.findMany({
+      include: { user: true },
+      orderBy: { id: 'asc' },
+      skip,
+      take,
+    }),
+    prisma.userRole.count(),
+  ]);
+  return { items, total };
 }
 
 export async function findUserRoleById(id) {

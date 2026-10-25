@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth.js';
-import { inflightJson, sharedInflight } from '../../shared/api/inflightFetch.js';
+import { sharedInflight } from '../../shared/api/inflightFetch.js';
+import { fetchAllPages } from '../../shared/api/pagination.js';
 
 function loadInspectionCatalog() {
   return sharedInflight('inspections-page-catalog', () =>
     Promise.all([
-      inflightJson('GET /api/products', '/api/products', {
-        errorMessage: 'Failed to load products',
-      }),
-      inflightJson('GET /api/manufacturing-units', '/api/manufacturing-units', {
+      fetchAllPages('/api/products', { errorMessage: 'Failed to load products' }),
+      fetchAllPages('/api/manufacturing-units', {
         errorMessage: 'Failed to load manufacturing units',
       }),
-      inflightJson('GET /api/skus', '/api/skus', { errorMessage: 'Failed to load SKUs' }),
+      fetchAllPages('/api/skus', { errorMessage: 'Failed to load SKUs' }),
     ]).then(([nextProducts, nextUnits, nextSkus]) => ({
       products: nextProducts,
       units: nextUnits,

@@ -1,7 +1,7 @@
 import * as userRoleService from './userRole.service.js';
 
-export async function listUserRoles(_req, res) {
-  const roles = await userRoleService.listUserRoles();
+export async function listUserRoles(req, res) {
+  const roles = await userRoleService.listUserRoles(req.query);
   res.json(roles);
 }
 

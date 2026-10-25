@@ -1,10 +1,17 @@
 import { ApiError, mapPrismaError } from '../../utils/apiError.js';
+import { parsePagination, toPage } from '../../utils/pagination.js';
 import { serializeUserRole } from './userRole.serializer.js';
 import * as userRoleRepository from './userRole.repository.js';
 
-export async function listUserRoles() {
-  const roles = await userRoleRepository.findAllUserRoles();
-  return roles.map(serializeUserRole);
+export async function listUserRoles(query = {}) {
+  const { page, limit, skip, take } = parsePagination(query);
+  const { items, total } = await userRoleRepository.findAllUserRoles({ skip, take });
+  return toPage({
+    items: items.map(serializeUserRole),
+    page,
+    limit,
+    total,
+  });
 }
 
 export async function getUserRole(id) {

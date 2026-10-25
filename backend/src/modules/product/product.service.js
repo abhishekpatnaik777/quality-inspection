@@ -1,4 +1,5 @@
 import { ApiError, mapPrismaError } from '../../utils/apiError.js';
+import { parsePagination, toPage } from '../../utils/pagination.js';
 import { serializeBatch, serializeProduct } from './product.serializer.js';
 import * as productRepository from './product.repository.js';
 
@@ -11,9 +12,15 @@ export function buildBatchNumber({ skuId, manufacturingUnitId }) {
   return `B-${skuId}-${manufacturingUnitId}-${stamp}-${suffix}`;
 }
 
-export async function listProducts() {
-  const products = await productRepository.findAllProducts();
-  return products.map(serializeProduct);
+export async function listProducts(query = {}) {
+  const { page, limit, skip, take } = parsePagination(query);
+  const { items, total } = await productRepository.findAllProducts({ skip, take });
+  return toPage({
+    items: items.map(serializeProduct),
+    page,
+    limit,
+    total,
+  });
 }
 
 export async function generateProducts(payload) {

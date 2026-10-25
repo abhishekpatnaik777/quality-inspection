@@ -11,6 +11,12 @@ import {
   predictionStatusLabel,
 } from './defects.js';
 import {
+  collectPendingPredictions,
+  formatDisplayDate,
+  hasProcessingAiRun,
+  isOutOfCreditsError,
+} from './inspectionDetailHelpers.js';
+import {
   aiInspectionStatusBadge,
   inspectionStatusBadge,
   predictionStatusBadge,
@@ -21,36 +27,6 @@ const AI_POLL_INTERVAL_MS = 2000;
 function fetchInspection(id) {
   const url = `/api/inspections/${id}`;
   return inflightJson(`GET ${url}`, url, { errorMessage: 'Failed to load inspection' });
-}
-
-function collectPendingPredictions(inspection) {
-  const pending = [];
-  for (const ai of inspection?.ai_inspections ?? []) {
-    for (const prediction of ai.predictions ?? []) {
-      if (prediction.status === 'pending') {
-        pending.push({ ...prediction, ai_inspection_id: ai.id, image_url: ai.image_url });
-      }
-    }
-  }
-  return pending;
-}
-
-function hasProcessingAiRun(inspection) {
-  return (inspection?.ai_inspections ?? []).some((ai) => ai.status === 'processing');
-}
-
-function isOutOfCreditsError(ai) {
-  const code = ai?.raw_response?.code;
-  const message = ai?.raw_response?.error;
-  return code === 'out_of_credits' || message === 'Out of credits';
-}
-
-function formatDisplayDate(value) {
-  if (!value) return '—';
-  const raw = String(value).slice(0, 10);
-  const [year, month, day] = raw.split('-');
-  if (!year || !month || !day) return value;
-  return `${day}/${month}/${year}`;
 }
 
 export default function InspectionDetailPage() {

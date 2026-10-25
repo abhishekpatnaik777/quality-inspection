@@ -3,12 +3,18 @@ import { inspectionDetailInclude } from './inspection.serializer.js';
 import { findPredictionsByInspectionId } from '../aiInspectionPrediction/aiInspectionPrediction.repository.js';
 import { findResultsByInspectionId } from '../inspectionResult/inspectionResult.repository.js';
 
-export async function findInspections(where = {}) {
-  return prisma.inspection.findMany({
-    where,
-    include: inspectionDetailInclude,
-    orderBy: { id: 'desc' },
-  });
+export async function findInspections(where = {}, { skip, take } = {}) {
+  const [items, total] = await Promise.all([
+    prisma.inspection.findMany({
+      where,
+      include: inspectionDetailInclude,
+      orderBy: { id: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.inspection.count({ where }),
+  ]);
+  return { items, total };
 }
 
 export async function findInspectionById(id) {

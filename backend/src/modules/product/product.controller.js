@@ -1,7 +1,7 @@
 import * as productService from './product.service.js';
 
-export async function listProducts(_req, res) {
-  const products = await productService.listProducts();
+export async function listProducts(req, res) {
+  const products = await productService.listProducts(req.query);
   res.json(products);
 }
 

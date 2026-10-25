@@ -1,10 +1,17 @@
 import { ApiError, mapPrismaError } from '../../utils/apiError.js';
+import { parsePagination, toPage } from '../../utils/pagination.js';
 import { serializeSku } from './sku.serializer.js';
 import * as skuRepository from './sku.repository.js';
 
-export async function listSkus() {
-  const skus = await skuRepository.findAllSkus();
-  return skus.map(serializeSku);
+export async function listSkus(query = {}) {
+  const { page, limit, skip, take } = parsePagination(query);
+  const { items, total } = await skuRepository.findAllSkus({ skip, take });
+  return toPage({
+    items: items.map(serializeSku),
+    page,
+    limit,
+    total,
+  });
 }
 
 export async function getSku(id) {

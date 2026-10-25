@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth.js';
 import AppShell from '../../layout/AppShell.jsx';
+import { fetchAllPages } from '../../shared/api/pagination.js';
 
 const ROLE_PICKER = {
   supervisor: {
@@ -114,9 +115,9 @@ function LoginHome() {
     setCandidates([]);
 
     try {
-      const res = await fetch('/api/users');
-      if (!res.ok) throw new Error(copy.loadError);
-      const users = await res.json();
+      const users = await fetchAllPages(`/api/users?role=${encodeURIComponent(roleValue)}`, {
+        errorMessage: copy.loadError,
+      });
       const list = users.filter(
         (u) => u.status === 'active' && Array.isArray(u.roles) && u.roles.includes(roleValue)
       );

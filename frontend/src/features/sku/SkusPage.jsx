@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { inflightJson } from '../../shared/api/inflightFetch.js';
+import { DEFAULT_PAGE_SIZE, withPaginationParams } from '../../shared/api/pagination.js';
+import PaginationBar from '../../shared/ui/PaginationBar.jsx';
 import { SKU_CATEGORIES, categoryLabel } from './skuLabels.js';
 
 const emptyForm = {
@@ -10,20 +12,26 @@ const emptyForm = {
 
 export default function SkusPage() {
   const [skus, setSkus] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    const url = withPaginationParams('/api/skus', { page, limit: DEFAULT_PAGE_SIZE });
 
-    inflightJson('GET /api/skus', '/api/skus', { errorMessage: 'Failed to load SKUs' })
+    inflightJson(`GET ${url}`, url, { errorMessage: 'Failed to load SKUs' })
       .then((data) => {
         if (cancelled) return;
-        setSkus(data);
+        setSkus(data.items ?? []);
+        setTotal(Number(data.total ?? 0));
         setError(null);
       })
       .catch((err) => {
@@ -37,7 +45,7 @@ export default function SkusPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page, reloadToken]);
 
   function openModal() {
     setForm(emptyForm);
@@ -66,8 +74,8 @@ export default function SkusPage() {
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'Failed to create SKU');
-      setSkus((prev) => [...prev, body]);
       setModalOpen(false);
+      setReloadToken((n) => n + 1);
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -81,7 +89,7 @@ export default function SkusPage() {
         <div>
           <h1>SKUs</h1>
           <p className="subtitle">
-            {skus.length} SKU{skus.length === 1 ? '' : 's'}
+            {total} SKU{total === 1 ? '' : 's'}
           </p>
         </div>
         <div className="page-header-actions">
@@ -98,28 +106,37 @@ export default function SkusPage() {
       ) : skus.length === 0 ? (
         <p className="empty-state">No SKUs yet.</p>
       ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Model</th>
-              </tr>
-            </thead>
-            <tbody>
-              {skus.map((sku) => (
-                <tr key={sku.id}>
-                  <td>
-                    <strong>{sku.name}</strong>
-                  </td>
-                  <td className="cell-muted">{categoryLabel(sku.category)}</td>
-                  <td className="cell-muted">{sku.model}</td>
+        <>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Category</th>
+                  <th>Model</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {skus.map((sku) => (
+                  <tr key={sku.id}>
+                    <td>
+                      <strong>{sku.name}</strong>
+                    </td>
+                    <td className="cell-muted">{categoryLabel(sku.category)}</td>
+                    <td className="cell-muted">{sku.model}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <PaginationBar
+            page={page}
+            limit={DEFAULT_PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+            disabled={loading}
+          />
+        </>
       )}
 
       {modalOpen && (

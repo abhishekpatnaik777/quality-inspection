@@ -1,5 +1,6 @@
 import { ApiError, mapPrismaError } from '../../utils/apiError.js';
 import { DEFECT_TYPES, PHYSICAL_DEFECT_TYPES } from '../../constants/enums.js';
+import { parsePagination, toPage } from '../../utils/pagination.js';
 import { findProductById } from '../product/product.repository.js';
 import {
   findSupervisedPredictions,
@@ -18,13 +19,19 @@ function requirePositiveInt(value, fieldName) {
 }
 
 export async function listInspections(query) {
+  const { page, limit, skip, take } = parsePagination(query);
   const where = {};
   if (query.user_id) {
     where.userId = requirePositiveInt(query.user_id, 'user_id');
   }
 
-  const inspections = await inspectionRepository.findInspections(where);
-  return inspections.map(serializeInspection);
+  const { items, total } = await inspectionRepository.findInspections(where, { skip, take });
+  return toPage({
+    items: items.map(serializeInspection),
+    page,
+    limit,
+    total,
+  });
 }
 
 export async function getInspection(id) {
@@ -59,6 +66,7 @@ export async function createInspection(payload) {
 }
 
 export async function listSupervisedInspections(query) {
+  const { page, limit, skip, take } = parsePagination(query);
   const supervisorId = requirePositiveInt(query.supervisor_id, 'supervisor_id');
 
   let inspectorId = null;
@@ -78,7 +86,7 @@ export async function listSupervisedInspections(query) {
 
   const engineerIds = await inspectionRepository.findActiveEngineerIds(supervisorId);
   if (engineerIds.length === 0) {
-    return { items: [], inspectors: [], skus: [] };
+    return { items: [], inspectors: [], skus: [], page, limit, total: 0 };
   }
 
   if (inspectorId && !engineerIds.includes(inspectorId)) {
@@ -91,14 +99,16 @@ export async function listSupervisedInspections(query) {
   ]);
 
   if (skuId && !skus.some((sku) => sku.id === skuId)) {
-    return { items: [], inspectors, skus };
+    return { items: [], inspectors, skus, page, limit, total: 0 };
   }
 
-  const predictions = await findSupervisedPredictions({
+  const { items: predictions, total } = await findSupervisedPredictions({
     engineerIds,
     inspectorId,
     defectType,
     skuId,
+    skip,
+    take,
   });
 
   const items = predictions.map((prediction) => {
@@ -124,7 +134,7 @@ export async function listSupervisedInspections(query) {
     };
   });
 
-  return { items, inspectors, skus };
+  return { items, inspectors, skus, page, limit, total };
 }
 
 export async function getSupervisedSummary(query) {

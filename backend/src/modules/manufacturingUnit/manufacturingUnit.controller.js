@@ -1,7 +1,7 @@
 import * as manufacturingUnitService from './manufacturingUnit.service.js';
 
-export async function listManufacturingUnits(_req, res) {
-  const units = await manufacturingUnitService.listManufacturingUnits();
+export async function listManufacturingUnits(req, res) {
+  const units = await manufacturingUnitService.listManufacturingUnits(req.query);
   res.json(units);
 }
 

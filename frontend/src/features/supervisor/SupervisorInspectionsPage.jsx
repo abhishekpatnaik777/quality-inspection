@@ -2,10 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth.js';
 import { inflightJson } from '../../shared/api/inflightFetch.js';
+import { DEFAULT_PAGE_SIZE } from '../../shared/api/pagination.js';
+import PaginationBar from '../../shared/ui/PaginationBar.jsx';
 import { DEFECT_TYPES, defectLabel } from '../inspection/defects.js';
 
-function fetchSupervisedInspections({ supervisorId, defectType, inspectorId, skuId }) {
-  const params = new URLSearchParams({ supervisor_id: String(supervisorId) });
+function fetchSupervisedInspections({ supervisorId, defectType, inspectorId, skuId, page }) {
+  const params = new URLSearchParams({
+    supervisor_id: String(supervisorId),
+    page: String(page),
+    limit: String(DEFAULT_PAGE_SIZE),
+  });
   if (defectType) params.set('defect_type', defectType);
   if (inspectorId) params.set('inspector_id', inspectorId);
   if (skuId) params.set('sku_id', skuId);
@@ -31,6 +37,8 @@ export default function SupervisorInspectionsPage() {
   const supervisorId = user?.id;
 
   const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [inspectors, setInspectors] = useState([]);
   const [skus, setSkus] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +46,10 @@ export default function SupervisorInspectionsPage() {
   const [defectType, setDefectType] = useState('');
   const [inspectorId, setInspectorId] = useState('');
   const [skuId, setSkuId] = useState('');
+
+  useEffect(() => {
+    setPage(1);
+  }, [defectType, inspectorId, skuId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,10 +61,17 @@ export default function SupervisorInspectionsPage() {
     }
 
     setLoading(true);
-    fetchSupervisedInspections({ supervisorId, defectType, inspectorId, skuId })
+    fetchSupervisedInspections({
+      supervisorId,
+      defectType,
+      inspectorId,
+      skuId,
+      page,
+    })
       .then((body) => {
         if (cancelled) return;
         setItems(body.items ?? []);
+        setTotal(Number(body.total ?? 0));
         setInspectors(body.inspectors ?? []);
         setSkus(body.skus ?? []);
         setError(null);
@@ -68,7 +87,7 @@ export default function SupervisorInspectionsPage() {
     return () => {
       cancelled = true;
     };
-  }, [supervisorId, defectType, inspectorId, skuId]);
+  }, [supervisorId, defectType, inspectorId, skuId, page]);
 
   const summary = useMemo(() => {
     const accepted = items.filter((item) => item.ai_decision === 'accepted').length;
@@ -123,9 +142,9 @@ export default function SupervisorInspectionsPage() {
         </label>
       </div>
 
-      {!loading && !error && items.length > 0 && (
+      {!loading && !error && total > 0 && (
         <p className="muted filter-summary">
-          {items.length} result{items.length === 1 ? '' : 's'} · {summary.accepted} accepted ·{' '}
+          {total} result{total === 1 ? '' : 's'} · page shows {summary.accepted} accepted ·{' '}
           {summary.overridden} overridden
         </p>
       )}
@@ -137,68 +156,77 @@ export default function SupervisorInspectionsPage() {
       ) : items.length === 0 ? (
         <p className="empty-state">No logged inspections match these filters.</p>
       ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Inspection</th>
-                <th>SKU</th>
-                <th>Final defect</th>
-                <th>AI prediction</th>
-                <th>Timestamp</th>
-                <th>Image</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr
-                  key={item.id}
-                  className="table-row-clickable"
-                  tabIndex={0}
-                  role="link"
-                  onClick={() => navigate(`/inspections/${item.inspection_id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      navigate(`/inspections/${item.inspection_id}`);
-                    }
-                  }}
-                >
-                  <td>
-                    <strong>#{item.inspection_id}</strong>
-                  </td>
-                  <td>{item.sku_name ?? '—'}</td>
-                  <td>{defectLabel(item.final_defect_type)}</td>
-                  <td>
-                    <span
-                      className={
-                        item.ai_decision === 'accepted'
-                          ? 'prediction-accepted'
-                          : 'prediction-overridden'
-                      }
-                    >
-                      {defectLabel(item.ai_defect_type)}
-                    </span>
-                  </td>
-                  <td className="cell-muted">{formatTimestamp(item.timestamp)}</td>
-                  <td>
-                    {item.thumbnail_url ? (
-                      <img
-                        className="table-thumb"
-                        src={item.thumbnail_url}
-                        alt={`Inspection ${item.inspection_id} photo`}
-                      />
-                    ) : (
-                      <div className="table-thumb placeholder" aria-hidden="true">
-                        —
-                      </div>
-                    )}
-                  </td>
+        <>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Inspection</th>
+                  <th>SKU</th>
+                  <th>Final defect</th>
+                  <th>AI prediction</th>
+                  <th>Timestamp</th>
+                  <th>Image</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr
+                    key={item.id}
+                    className="table-row-clickable"
+                    tabIndex={0}
+                    role="link"
+                    onClick={() => navigate(`/inspections/${item.inspection_id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        navigate(`/inspections/${item.inspection_id}`);
+                      }
+                    }}
+                  >
+                    <td>
+                      <strong>#{item.inspection_id}</strong>
+                    </td>
+                    <td>{item.sku_name ?? '—'}</td>
+                    <td>{defectLabel(item.final_defect_type)}</td>
+                    <td>
+                      <span
+                        className={
+                          item.ai_decision === 'accepted'
+                            ? 'prediction-accepted'
+                            : 'prediction-overridden'
+                        }
+                      >
+                        {defectLabel(item.ai_defect_type)}
+                      </span>
+                    </td>
+                    <td className="cell-muted">{formatTimestamp(item.timestamp)}</td>
+                    <td>
+                      {item.thumbnail_url ? (
+                        <img
+                          className="table-thumb"
+                          src={item.thumbnail_url}
+                          alt={`Inspection ${item.inspection_id} photo`}
+                        />
+                      ) : (
+                        <div className="table-thumb placeholder" aria-hidden="true">
+                          —
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <PaginationBar
+            page={page}
+            limit={DEFAULT_PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+            disabled={loading}
+          />
+        </>
       )}
     </div>
   );

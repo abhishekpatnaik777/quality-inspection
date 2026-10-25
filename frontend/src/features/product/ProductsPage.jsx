@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { inflightJson, sharedInflight } from '../../shared/api/inflightFetch.js';
+import {
+  DEFAULT_PAGE_SIZE,
+  fetchAllPages,
+  withPaginationParams,
+} from '../../shared/api/pagination.js';
+import PaginationBar from '../../shared/ui/PaginationBar.jsx';
 
-function loadProductsCatalog() {
-  return sharedInflight('products-page-catalog', () =>
+function loadFormCatalog() {
+  return sharedInflight('products-page-form-catalog', () =>
     Promise.all([
-      inflightJson('GET /api/products', '/api/products', {
-        errorMessage: 'Failed to load products',
-      }),
-      inflightJson('GET /api/skus', '/api/skus', { errorMessage: 'Failed to load SKUs' }),
-      inflightJson('GET /api/manufacturing-units', '/api/manufacturing-units', {
+      fetchAllPages('/api/skus', { errorMessage: 'Failed to load SKUs' }),
+      fetchAllPages('/api/manufacturing-units', {
         errorMessage: 'Failed to load manufacturing units',
       }),
-    ]).then(([nextProducts, nextSkus, nextUnits]) => ({
-      products: nextProducts,
+    ]).then(([nextSkus, nextUnits]) => ({
       skus: nextSkus,
       units: nextUnits,
     }))
@@ -21,6 +23,8 @@ function loadProductsCatalog() {
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [skus, setSkus] = useState([]);
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +35,7 @@ export default function ProductsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
   const [statusMessage, setStatusMessage] = useState(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   const selectedSku = useMemo(
     () => skus.find((sku) => String(sku.id) === skuId) ?? null,
@@ -49,12 +54,32 @@ export default function ProductsPage() {
   useEffect(() => {
     let cancelled = false;
 
-    loadProductsCatalog()
-      .then(({ products: nextProducts, skus: nextSkus, units: nextUnits }) => {
+    loadFormCatalog()
+      .then(({ skus: nextSkus, units: nextUnits }) => {
         if (cancelled) return;
-        setProducts(nextProducts);
         setSkus(nextSkus);
         setUnits(nextUnits);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err.message || 'Unable to load products');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const url = withPaginationParams('/api/products', { page, limit: DEFAULT_PAGE_SIZE });
+
+    inflightJson(`GET ${url}`, url, { errorMessage: 'Failed to load products' })
+      .then((data) => {
+        if (cancelled) return;
+        setProducts(data.items ?? []);
+        setTotal(Number(data.total ?? 0));
         setError(null);
       })
       .catch((err) => {
@@ -68,7 +93,7 @@ export default function ProductsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page, reloadToken]);
 
   function openModal() {
     setSkuId(skus[0] ? String(skus[0].id) : '');
@@ -107,9 +132,7 @@ export default function ProductsPage() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'Failed to generate products');
 
-      if (Array.isArray(body.products)) {
-        setProducts((prev) => [...prev, ...body.products]);
-      }
+      setReloadToken((n) => n + 1);
       setStatusMessage(
         `${body.message} Batch ${body.batch?.batch_number} created (${body.products_created} products).`
       );
@@ -131,7 +154,7 @@ export default function ProductsPage() {
         <div>
           <h1>Products</h1>
           <p className="subtitle">
-            {products.length} product{products.length === 1 ? '' : 's'}
+            {total} product{total === 1 ? '' : 's'}
           </p>
         </div>
         <div className="page-header-actions">
@@ -159,30 +182,39 @@ export default function ProductsPage() {
       ) : products.length === 0 ? (
         <p className="empty-state">No products yet.</p>
       ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>SKU</th>
-                <th>Batch</th>
-                <th>Manufacturing unit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product) => (
-                <tr key={product.id}>
-                  <td>
-                    <strong>#{product.id}</strong>
-                  </td>
-                  <td>{product.sku_name}</td>
-                  <td className="cell-muted">{product.batch_number}</td>
-                  <td className="cell-muted">{product.manufacturing_unit_name}</td>
+        <>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>SKU</th>
+                  <th>Batch</th>
+                  <th>Manufacturing unit</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {products.map((product) => (
+                  <tr key={product.id}>
+                    <td>
+                      <strong>#{product.id}</strong>
+                    </td>
+                    <td>{product.sku_name}</td>
+                    <td className="cell-muted">{product.batch_number}</td>
+                    <td className="cell-muted">{product.manufacturing_unit_name}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <PaginationBar
+            page={page}
+            limit={DEFAULT_PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+            disabled={loading}
+          />
+        </>
       )}
 
       {modalOpen && (

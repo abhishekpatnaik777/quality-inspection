@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJson, inflightJson } from '../../shared/api/inflightFetch.js';
+import { DEFAULT_PAGE_SIZE, fetchAllPages } from '../../shared/api/pagination.js';
+import PaginationBar from '../../shared/ui/PaginationBar.jsx';
 import { USER_ROLES, roleLabel, userStatusBadge } from './userLabels.js';
 
 const emptyForm = {
@@ -9,14 +11,20 @@ const emptyForm = {
   supervisor_id: '',
 };
 
-function usersUrl(query) {
-  const qs = query ? `?q=${encodeURIComponent(query)}` : '';
-  return `/api/users${qs}`;
+function usersUrl({ query = '', page = 1, limit = DEFAULT_PAGE_SIZE } = {}) {
+  const params = new URLSearchParams();
+  if (query) params.set('q', query);
+  params.set('page', String(page));
+  params.set('limit', String(limit));
+  return `/api/users?${params}`;
 }
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -24,18 +32,38 @@ export default function UsersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
   const searchRef = useRef(search);
+  const pageRef = useRef(page);
 
   useEffect(() => {
     searchRef.current = search;
   }, [search]);
 
-  const supervisors = useMemo(
-    () =>
-      users.filter(
-        (u) => u.status === 'active' && Array.isArray(u.roles) && u.roles.includes('supervisor')
-      ),
-    [users]
-  );
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchAllPages('/api/users?role=supervisor', { errorMessage: 'Failed to load supervisors' })
+      .then((list) => {
+        if (cancelled) return;
+        setSupervisors(
+          list.filter(
+            (u) => u.status === 'active' && Array.isArray(u.roles) && u.roles.includes('supervisor')
+          )
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setSupervisors([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,11 +73,12 @@ export default function UsersPage() {
     const timer = setTimeout(() => {
       setLoading(true);
       setError(null);
-      const url = usersUrl(query);
+      const url = usersUrl({ query, page });
       inflightJson(`GET ${url}`, url, { errorMessage: 'Failed to load users' })
         .then((data) => {
           if (cancelled) return;
-          setUsers(data);
+          setUsers(data.items ?? []);
+          setTotal(Number(data.total ?? 0));
         })
         .catch((err) => {
           if (cancelled) return;
@@ -64,12 +93,11 @@ export default function UsersPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [search]);
+  }, [search, page]);
 
   const countLabel = useMemo(() => {
-    const n = users.length;
-    return `${n} user${n === 1 ? '' : 's'}`;
-  }, [users.length]);
+    return `${total} user${total === 1 ? '' : 's'}`;
+  }, [total]);
 
   function openModal() {
     setForm({
@@ -90,8 +118,10 @@ export default function UsersPage() {
     setError(null);
     try {
       const query = searchRef.current.trim();
-      const url = usersUrl(query);
-      setUsers(await fetchJson(url, { errorMessage: 'Failed to load users' }));
+      const url = usersUrl({ query, page: pageRef.current });
+      const data = await fetchJson(url, { errorMessage: 'Failed to load users' });
+      setUsers(data.items ?? []);
+      setTotal(Number(data.total ?? 0));
     } catch (err) {
       setError(err.message || 'Unable to load users');
     } finally {
@@ -130,6 +160,16 @@ export default function UsersPage() {
       setModalOpen(false);
       setForm(emptyForm);
       await reloadUsers();
+      if (payload.role === 'supervisor') {
+        const list = await fetchAllPages('/api/users?role=supervisor', {
+          errorMessage: 'Failed to load supervisors',
+        });
+        setSupervisors(
+          list.filter(
+            (u) => u.status === 'active' && Array.isArray(u.roles) && u.roles.includes('supervisor')
+          )
+        );
+      }
     } catch (err) {
       setFormError(err.message);
     } finally {
@@ -169,42 +209,51 @@ export default function UsersPage() {
       ) : users.length === 0 ? (
         <p className="empty-state">No users found.</p>
       ) : (
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Roles</th>
-                <th>Supervisor</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    <strong>{user.name}</strong>
-                  </td>
-                  <td className="cell-muted">{user.email}</td>
-                  <td>
-                    <div className="row-tags">
-                      {(user.roles || []).map((role) => (
-                        <span key={role} className="badge badge-neutral">
-                          {roleLabel(role)}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="cell-muted">{user.supervisor?.name || '—'}</td>
-                  <td>
-                    <span className={userStatusBadge(user.status)}>{user.status}</span>
-                  </td>
+        <>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Roles</th>
+                  <th>Supervisor</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.id}>
+                    <td>
+                      <strong>{user.name}</strong>
+                    </td>
+                    <td className="cell-muted">{user.email}</td>
+                    <td>
+                      <div className="row-tags">
+                        {(user.roles || []).map((role) => (
+                          <span key={role} className="badge badge-neutral">
+                            {roleLabel(role)}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="cell-muted">{user.supervisor?.name || '—'}</td>
+                    <td>
+                      <span className={userStatusBadge(user.status)}>{user.status}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <PaginationBar
+            page={page}
+            limit={DEFAULT_PAGE_SIZE}
+            total={total}
+            onPageChange={setPage}
+            disabled={loading}
+          />
+        </>
       )}
 
       {modalOpen && (

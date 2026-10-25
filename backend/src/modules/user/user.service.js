@@ -1,12 +1,24 @@
 import { ApiError, mapPrismaError } from '../../utils/apiError.js';
+import { parsePagination, toPage } from '../../utils/pagination.js';
 import { serializeUser, serializeUserSupervisor } from './user.serializer.js';
 import * as userRepository from './user.repository.js';
 
 export async function listUsers(query) {
+  const { page, limit, skip, take } = parsePagination(query);
   const search = typeof query.q === 'string' ? query.q.trim() : '';
   const roleFilter = typeof query.role === 'string' ? query.role.trim() : '';
-  const users = await userRepository.findUsers({ search, roleFilter });
-  return users.map(serializeUser);
+  const { items, total } = await userRepository.findUsers({
+    search,
+    roleFilter,
+    skip,
+    take,
+  });
+  return toPage({
+    items: items.map(serializeUser),
+    page,
+    limit,
+    total,
+  });
 }
 
 export async function getUser(id) {
