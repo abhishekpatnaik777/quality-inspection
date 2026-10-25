@@ -1,6 +1,6 @@
 import { serializeProduct } from '../product/product.serializer.js';
-import { serializeAiInspection } from '../aiInspection/aiInspection.serializer.js';
-import { serializeInspectionResult } from '../inspectionResult/inspectionResult.serializer.js';
+import { serializeAiInspection } from './aiInspection/aiInspection.serializer.js';
+import { serializeInspectionResult } from './inspectionResult/inspectionResult.serializer.js';
 
 function toIso(value) {
   return value instanceof Date ? value.toISOString() : value;
@@ -43,7 +43,7 @@ export const inspectionDetailInclude = {
         orderBy: { id: 'asc' },
       },
     },
-    orderBy: { id: 'asc' },
+    orderBy: { id: 'desc' },
   },
   results: {
     orderBy: { id: 'asc' },

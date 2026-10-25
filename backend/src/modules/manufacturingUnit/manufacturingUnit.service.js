@@ -1,4 +1,4 @@
-import { ApiError, mapPrismaError } from '../../utils/apiError.js';
+import { mapPrismaError } from '../../utils/apiError.js';
 import { parsePagination, toPage } from '../../utils/pagination.js';
 import { serializeManufacturingUnit } from './manufacturingUnit.serializer.js';
 import * as manufacturingUnitRepository from './manufacturingUnit.repository.js';
@@ -15,14 +15,6 @@ export async function listManufacturingUnits(query = {}) {
     limit,
     total,
   });
-}
-
-export async function getManufacturingUnit(id) {
-  const unit = await manufacturingUnitRepository.findManufacturingUnitById(id);
-  if (!unit) {
-    throw new ApiError(404, 'Manufacturing unit not found');
-  }
-  return serializeManufacturingUnit(unit);
 }
 
 export async function createManufacturingUnit(payload) {

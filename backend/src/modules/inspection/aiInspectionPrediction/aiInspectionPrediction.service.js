@@ -1,11 +1,11 @@
-import { prisma } from '../../config/database.js';
-import { ApiError } from '../../utils/apiError.js';
-import { PHYSICAL_DEFECT_TYPES } from '../../constants/enums.js';
-import { serializeInspection } from '../inspection/inspection.serializer.js';
+import { prisma } from '../../../config/database.js';
+import { ApiError } from '../../../utils/apiError.js';
+import { PHYSICAL_DEFECT_TYPES } from '../../../constants/enums.js';
+import { serializeInspection } from '../inspection.serializer.js';
 import {
   findInspectionByIdWithClient,
   refreshInspectionOutcome,
-} from '../inspection/inspection.repository.js';
+} from '../inspection.repository.js';
 import { markAiInspectionCompleted } from '../aiInspection/aiInspection.repository.js';
 import { createInspectionResult } from '../inspectionResult/inspectionResult.repository.js';
 import * as predictionRepository from './aiInspectionPrediction.repository.js';

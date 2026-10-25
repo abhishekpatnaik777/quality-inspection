@@ -1,5 +1,25 @@
-import { prisma } from '../../config/database.js';
+import { AiInspectionStatus } from '@prisma/client';
+import { prisma } from '../../../config/database.js';
 import { createManyPredictions } from '../aiInspectionPrediction/aiInspectionPrediction.repository.js';
+
+const STALE_PROCESSING_MS = 2 * 60 * 60 * 1000;
+
+export async function expireStaleProcessingAiInspections() {
+  const cutoff = new Date(Date.now() - STALE_PROCESSING_MS);
+  return prisma.aiInspection.updateMany({
+    where: {
+      status: AiInspectionStatus.processing,
+      updatedAt: { lt: cutoff },
+    },
+    data: {
+      status: AiInspectionStatus.error,
+      rawResponse: {
+        error: 'Analysis timed out',
+        code: 'processing_timeout',
+      },
+    },
+  });
+}
 
 export async function createAiInspection(data) {
   return prisma.aiInspection.create({ data });

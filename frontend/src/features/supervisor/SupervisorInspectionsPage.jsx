@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth.js';
 import { inflightJson } from '../../shared/api/inflightFetch.js';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/pagination.js';
 import PaginationBar from '../../shared/ui/PaginationBar.jsx';
-import { DEFECT_TYPES, defectLabel } from '../inspection/defects.js';
+import { DEFECT_TYPES } from '../inspection/defects.js';
 
 function fetchSupervisedInspections({ supervisorId, defectType, inspectorId, skuId, page }) {
   const params = new URLSearchParams({
@@ -89,12 +89,6 @@ export default function SupervisorInspectionsPage() {
     };
   }, [supervisorId, defectType, inspectorId, skuId, page]);
 
-  const summary = useMemo(() => {
-    const accepted = items.filter((item) => item.ai_decision === 'accepted').length;
-    const overridden = items.filter((item) => item.ai_decision === 'overridden').length;
-    return { accepted, overridden };
-  }, [items]);
-
   return (
     <div className="page">
       <header className="page-header">
@@ -107,6 +101,17 @@ export default function SupervisorInspectionsPage() {
       </header>
 
       <div className="filter-bar">
+        <label>
+          SKU
+          <select value={skuId} onChange={(e) => setSkuId(e.target.value)}>
+            <option value="">All SKUs</option>
+            {skus.map((sku) => (
+              <option key={sku.id} value={sku.id}>
+                {sku.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label>
           Defect type
           <select value={defectType} onChange={(e) => setDefectType(e.target.value)}>
@@ -129,23 +134,11 @@ export default function SupervisorInspectionsPage() {
             ))}
           </select>
         </label>
-        <label>
-          SKU
-          <select value={skuId} onChange={(e) => setSkuId(e.target.value)}>
-            <option value="">All SKUs</option>
-            {skus.map((sku) => (
-              <option key={sku.id} value={sku.id}>
-                {sku.name}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
 
       {!loading && !error && total > 0 && (
         <p className="muted filter-summary">
-          {total} result{total === 1 ? '' : 's'} · page shows {summary.accepted} accepted ·{' '}
-          {summary.overridden} overridden
+          {total} inspection{total === 1 ? '' : 's'}
         </p>
       )}
 
@@ -163,16 +156,14 @@ export default function SupervisorInspectionsPage() {
                 <tr>
                   <th>Inspection</th>
                   <th>SKU</th>
-                  <th>Final defect</th>
-                  <th>AI prediction</th>
+                  <th>Total Defects</th>
                   <th>Timestamp</th>
-                  <th>Image</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => (
                   <tr
-                    key={item.id}
+                    key={item.inspection_id}
                     className="table-row-clickable"
                     tabIndex={0}
                     role="link"
@@ -188,32 +179,8 @@ export default function SupervisorInspectionsPage() {
                       <strong>#{item.inspection_id}</strong>
                     </td>
                     <td>{item.sku_name ?? '—'}</td>
-                    <td>{defectLabel(item.final_defect_type)}</td>
-                    <td>
-                      <span
-                        className={
-                          item.ai_decision === 'accepted'
-                            ? 'prediction-accepted'
-                            : 'prediction-overridden'
-                        }
-                      >
-                        {defectLabel(item.ai_defect_type)}
-                      </span>
-                    </td>
+                    <td className="cell-muted">{item.final_defect_count ?? 0}</td>
                     <td className="cell-muted">{formatTimestamp(item.timestamp)}</td>
-                    <td>
-                      {item.thumbnail_url ? (
-                        <img
-                          className="table-thumb"
-                          src={item.thumbnail_url}
-                          alt={`Inspection ${item.inspection_id} photo`}
-                        />
-                      ) : (
-                        <div className="table-thumb placeholder" aria-hidden="true">
-                          —
-                        </div>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>

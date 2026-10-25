@@ -8,10 +8,6 @@ export async function findAllSkus({ skip, take } = {}) {
   return { items, total };
 }
 
-export async function findSkuById(id) {
-  return prisma.sku.findUnique({ where: { id } });
-}
-
 export async function createSku(data) {
   return prisma.sku.create({
     data: {

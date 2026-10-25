@@ -1,7 +1,7 @@
 import { prisma } from '../../config/database.js';
 import { inspectionDetailInclude } from './inspection.serializer.js';
-import { findPredictionsByInspectionId } from '../aiInspectionPrediction/aiInspectionPrediction.repository.js';
-import { findResultsByInspectionId } from '../inspectionResult/inspectionResult.repository.js';
+import { findPredictionsByInspectionId } from './aiInspectionPrediction/aiInspectionPrediction.repository.js';
+import { findResultsByInspectionId } from './inspectionResult/inspectionResult.repository.js';
 
 export async function findInspections(where = {}, { skip, take } = {}) {
   const [items, total] = await Promise.all([
@@ -35,6 +35,14 @@ export async function findInspectionRecord(id) {
   return prisma.inspection.findUnique({ where: { id } });
 }
 
+export async function findLatestInspectionByProductAndUser(productId, userId) {
+  return prisma.inspection.findFirst({
+    where: { productId, userId },
+    include: inspectionDetailInclude,
+    orderBy: { id: 'desc' },
+  });
+}
+
 export async function createInspection(data) {
   return prisma.inspection.create({
     data: {
@@ -61,6 +69,65 @@ export async function findUsersByIds(ids) {
     select: { id: true, name: true, email: true },
     orderBy: { name: 'asc' },
   });
+}
+
+export async function findSupervisedInspections({
+  engineerIds,
+  inspectorId,
+  defectType,
+  skuId,
+  skip,
+  take,
+}) {
+  const where = {
+    userId: inspectorId ? inspectorId : { in: engineerIds },
+    ...(skuId
+      ? {
+          product: {
+            batch: { skuId },
+          },
+        }
+      : {}),
+    aiInspections: {
+      some: {
+        predictions: {
+          some: {
+            status: { in: ['approved', 'overridden'] },
+            ...(defectType ? { finalDefectType: defectType } : {}),
+          },
+        },
+      },
+    },
+  };
+
+  const [items, total] = await Promise.all([
+    prisma.inspection.findMany({
+      where,
+      include: {
+        engineer: true,
+        product: {
+          include: {
+            batch: {
+              include: { sku: true },
+            },
+          },
+        },
+        aiInspections: {
+          include: {
+            predictions: {
+              where: { status: { in: ['approved', 'overridden'] } },
+            },
+          },
+        },
+      },
+      orderBy: { id: 'desc' },
+      skip,
+      take,
+    }),
+    prisma.inspection.count({ where }),
+  ]);
+
+  return { items, total };
 }
 
 export async function findSkusForEngineers(engineerIds) {

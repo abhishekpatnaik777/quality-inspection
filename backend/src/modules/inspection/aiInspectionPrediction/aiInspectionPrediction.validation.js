@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { parseSchema } from '../../utils/validate.js';
-import { userIdSchema } from '../user/user.validation.js';
-import { DEFECT_TYPES, PHYSICAL_DEFECT_TYPES } from '../../constants/enums.js';
-import { inspectionIdSchema } from '../inspection/inspection.validation.js';
+import { parseSchema } from '../../../utils/validate.js';
+import { userIdSchema } from '../../user/user.validation.js';
+import { DEFECT_TYPES, PHYSICAL_DEFECT_TYPES } from '../../../constants/enums.js';
+import { inspectionIdSchema } from '../inspection.validation.js';
 
 export { DEFECT_TYPES, PHYSICAL_DEFECT_TYPES };
 

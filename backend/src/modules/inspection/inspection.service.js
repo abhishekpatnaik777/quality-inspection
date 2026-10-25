@@ -3,10 +3,10 @@ import { DEFECT_TYPES, PHYSICAL_DEFECT_TYPES } from '../../constants/enums.js';
 import { parsePagination, toPage } from '../../utils/pagination.js';
 import { findProductById } from '../product/product.repository.js';
 import {
-  findSupervisedPredictions,
   findSummaryFilterRows,
   findSummaryMetricRows,
-} from '../aiInspectionPrediction/aiInspectionPrediction.repository.js';
+} from './aiInspectionPrediction/aiInspectionPrediction.repository.js';
+import { expireStaleProcessingAiInspections } from './aiInspection/aiInspection.repository.js';
 import { serializeInspection } from './inspection.serializer.js';
 import * as inspectionRepository from './inspection.repository.js';
 
@@ -35,6 +35,7 @@ export async function listInspections(query) {
 }
 
 export async function getInspection(id) {
+  await expireStaleProcessingAiInspections();
   const inspection = await inspectionRepository.findInspectionById(id);
   if (!inspection) {
     throw new ApiError(404, 'Inspection not found');
@@ -50,6 +51,14 @@ export async function createInspection(payload) {
     throw new ApiError(404, 'Product not found');
   }
 
+  const existing = await inspectionRepository.findLatestInspectionByProductAndUser(
+    product_id,
+    user_id
+  );
+  if (existing) {
+    return { inspection: serializeInspection(existing), created: false };
+  }
+
   try {
     const inspection = await inspectionRepository.createInspection({
       userId: user_id,
@@ -57,7 +66,7 @@ export async function createInspection(payload) {
       createdBy: created_by ?? user_id,
       updatedBy: updated_by ?? user_id,
     });
-    return serializeInspection(inspection);
+    return { inspection: serializeInspection(inspection), created: true };
   } catch (err) {
     mapPrismaError(err, {
       P2003: { statusCode: 400, message: 'Invalid product or user reference' },
@@ -102,7 +111,7 @@ export async function listSupervisedInspections(query) {
     return { items: [], inspectors, skus, page, limit, total: 0 };
   }
 
-  const { items: predictions, total } = await findSupervisedPredictions({
+  const { items: inspections, total } = await inspectionRepository.findSupervisedInspections({
     engineerIds,
     inspectorId,
     defectType,
@@ -111,26 +120,29 @@ export async function listSupervisedInspections(query) {
     take,
   });
 
-  const items = predictions.map((prediction) => {
-    const inspection = prediction.aiInspection.inspection;
+  const items = inspections.map((inspection) => {
     const sku = inspection.product?.batch?.sku ?? null;
+    const predictions = (inspection.aiInspections ?? []).flatMap((ai) => ai.predictions ?? []);
+    let latestMs = 0;
+    for (const prediction of predictions) {
+      const value = prediction.verifiedAt ?? prediction.updatedAt;
+      const ms = value instanceof Date ? value.getTime() : new Date(value).getTime();
+      if (Number.isFinite(ms) && ms > latestMs) latestMs = ms;
+    }
+
     return {
-      id: prediction.id,
+      id: inspection.id,
       inspection_id: inspection.id,
-      thumbnail_url: prediction.aiInspection.imageUrl,
-      final_defect_type: prediction.finalDefectType,
-      ai_defect_type: prediction.aiDefectType,
-      prediction_status: prediction.status,
-      ai_decision: prediction.status === 'approved' ? 'accepted' : 'overridden',
       inspector_id: inspection.userId,
       inspector_name: inspection.engineer?.name ?? null,
-      timestamp: prediction.verifiedAt
-        ? prediction.verifiedAt.toISOString()
-        : prediction.updatedAt.toISOString(),
+      timestamp: latestMs > 0 ? new Date(latestMs).toISOString() : null,
       inspection_date: inspection.inspectionDate.toISOString().slice(0, 10),
       product_id: inspection.productId,
       sku_id: sku?.id ?? null,
       sku_name: sku?.name ?? null,
+      final_defect_count: predictions.filter((prediction) =>
+        PHYSICAL_DEFECT_TYPES.includes(prediction.finalDefectType)
+      ).length,
     };
   });
 

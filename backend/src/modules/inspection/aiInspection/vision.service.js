@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-import { DEFECT_TYPES } from '../../constants/enums.js';
-import { env } from '../../config/environment.js';
+import { DEFECT_TYPES } from '../../../constants/enums.js';
+import { env } from '../../../config/environment.js';
 import {
   normalizeConfidence,
   normalizeDefectType,

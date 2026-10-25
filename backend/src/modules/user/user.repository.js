@@ -40,13 +40,6 @@ export async function findUsers({ search = '', roleFilter = '', skip, take } = {
   return { items, total };
 }
 
-export async function findUserById(id) {
-  return prisma.user.findUnique({
-    where: { id },
-    include: userListInclude,
-  });
-}
-
 export async function findUserWithRoles(id) {
   return prisma.user.findUnique({
     where: { id },
@@ -105,16 +98,4 @@ export async function createUserWithRole(data) {
       },
     });
   });
-}
-
-export async function updateUser(id, data) {
-  return prisma.user.update({
-    where: { id },
-    data,
-    include: userListInclude,
-  });
-}
-
-export async function deleteUser(id) {
-  return prisma.user.delete({ where: { id } });
 }

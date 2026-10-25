@@ -1,6 +1,6 @@
-import { ApiError } from '../../utils/apiError.js';
-import { inspectionImageUpload } from '../../utils/uploads.js';
-import { validateInspectionId } from '../inspection/inspection.validation.js';
+import { ApiError } from '../../../utils/apiError.js';
+import { inspectionImageUpload } from '../../../utils/uploads.js';
+import { validateInspectionId } from '../inspection.validation.js';
 import * as aiInspectionService from './aiInspection.service.js';
 
 export function runAiInspection(req, res, next) {

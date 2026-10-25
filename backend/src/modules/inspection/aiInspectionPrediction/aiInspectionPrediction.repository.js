@@ -1,4 +1,4 @@
-import { prisma } from '../../config/database.js';
+import { prisma } from '../../../config/database.js';
 
 export async function createManyPredictions(tx, predictions) {
   return tx.aiInspectionPrediction.createMany({ data: predictions });
@@ -31,62 +31,6 @@ export async function findPredictionsByInspectionId(tx, inspectionId) {
   return tx.aiInspectionPrediction.findMany({
     where: { aiInspection: { inspectionId } },
   });
-}
-
-export async function findSupervisedPredictions({
-  engineerIds,
-  inspectorId,
-  defectType,
-  skuId,
-  skip,
-  take,
-}) {
-  const where = {
-    status: { in: ['approved', 'overridden'] },
-    ...(defectType ? { finalDefectType: defectType } : {}),
-    aiInspection: {
-      inspection: {
-        userId: inspectorId ? inspectorId : { in: engineerIds },
-        ...(skuId
-          ? {
-              product: {
-                batch: { skuId },
-              },
-            }
-          : {}),
-      },
-    },
-  };
-
-  const [items, total] = await Promise.all([
-    prisma.aiInspectionPrediction.findMany({
-      where,
-      include: {
-        aiInspection: {
-          include: {
-            inspection: {
-              include: {
-                engineer: true,
-                product: {
-                  include: {
-                    batch: {
-                      include: { sku: true },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: [{ verifiedAt: 'desc' }, { id: 'desc' }],
-      skip,
-      take,
-    }),
-    prisma.aiInspectionPrediction.count({ where }),
-  ]);
-
-  return { items, total };
 }
 
 export async function findSummaryFilterRows(engineerIds) {

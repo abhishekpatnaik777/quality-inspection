@@ -23,7 +23,3 @@ export const createSkuSchema = z.object({
 export function validateCreateSku(body) {
   return parseSchema(createSkuSchema, body ?? {});
 }
-
-export function validateSkuId(id) {
-  return parseSchema(skuIdSchema, id);
-}

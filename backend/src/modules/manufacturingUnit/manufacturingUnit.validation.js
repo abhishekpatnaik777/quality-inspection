@@ -22,7 +22,3 @@ export const createManufacturingUnitSchema = z.object({
 export function validateCreateManufacturingUnit(body) {
   return parseSchema(createManufacturingUnitSchema, body ?? {});
 }
-
-export function validateManufacturingUnitId(id) {
-  return parseSchema(manufacturingUnitIdSchema, id);
-}

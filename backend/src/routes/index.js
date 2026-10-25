@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { prisma } from '../config/database.js';
-import { getGoogleAiApiKey, isMockVisionEnabled } from '../modules/aiInspection/vision.service.js';
+import {
+  getGoogleAiApiKey,
+  isMockVisionEnabled,
+} from '../modules/inspection/aiInspection/vision.service.js';
 import userRouter from '../modules/user/user.route.js';
-import userRoleRouter from '../modules/userRole/userRole.route.js';
 import skuRouter from '../modules/sku/sku.route.js';
 import manufacturingUnitRouter from '../modules/manufacturingUnit/manufacturingUnit.route.js';
 import productRouter from '../modules/product/product.route.js';
@@ -28,7 +30,6 @@ router.get('/health', async (_req, res) => {
 });
 
 router.use('/users', userRouter);
-router.use('/user-roles', userRoleRouter);
 router.use('/skus', skuRouter);
 router.use('/manufacturing-units', manufacturingUnitRouter);
 router.use('/products', productRouter);

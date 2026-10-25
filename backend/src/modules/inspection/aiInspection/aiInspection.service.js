@@ -1,7 +1,7 @@
 import { AiInspectionStatus } from '@prisma/client';
-import { ApiError } from '../../utils/apiError.js';
-import { absoluteFromPublicUrl, publicImageUrl } from '../../utils/uploads.js';
-import { findInspectionRecord } from '../inspection/inspection.repository.js';
+import { ApiError } from '../../../utils/apiError.js';
+import { absoluteFromPublicUrl, publicImageUrl } from '../../../utils/uploads.js';
+import { findInspectionRecord } from '../inspection.repository.js';
 import { serializeAiInspection } from './aiInspection.serializer.js';
 import * as aiInspectionRepository from './aiInspection.repository.js';
 import { VisionError, predictDefectFromImage } from './vision.service.js';
@@ -37,6 +37,8 @@ async function finishAiInspectionInBackground({ aiInspectionId, imageUrl, create
 }
 
 export async function runAiInspection({ inspectionId, filename, createdBy, updatedBy }) {
+  await aiInspectionRepository.expireStaleProcessingAiInspections();
+
   const inspection = await findInspectionRecord(inspectionId);
   if (!inspection) {
     throw new ApiError(404, 'Inspection not found');

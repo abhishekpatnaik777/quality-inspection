@@ -375,22 +375,17 @@ npm run precommit
 
 ## API
 
-| Method             | Path                                                    | Description                                                                                             |
-| ------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `GET`              | `/api/health`                                           | Health + DB check                                                                                       |
-| `GET/POST`         | `/api/users`                                            | List (`?q=`) / create user+role                                                                         |
-| `GET/PATCH/DELETE` | `/api/users/:id`                                        | Read / update / delete user                                                                             |
-| `GET/POST`         | `/api/user-roles`                                       | List / assign roles                                                                                     |
-| `GET/PATCH/DELETE` | `/api/user-roles/:id`                                   | Read / update / delete role                                                                             |
-| `GET/POST`         | `/api/skus`                                             | List / create SKU                                                                                       |
-| `GET`              | `/api/skus/:id`                                         | Read SKU                                                                                                |
-| `GET/POST`         | `/api/manufacturing-units`                              | List / create manufacturing unit                                                                        |
-| `GET`              | `/api/manufacturing-units/:id`                          | Read manufacturing unit                                                                                 |
-| `GET`              | `/api/products`                                         | List products (includes batch / SKU / unit info)                                                        |
-| `POST`             | `/api/products/generate`                                | Body: `sku_id`, `manufacturing_unit_id` → batch + N products                                            |
-| `GET/POST`         | `/api/inspections`                                      | List (`?user_id=`) / start inspection                                                                   |
-| `GET`              | `/api/inspections/supervised`                           | Team inspections for a supervisor (`?supervisor_id=`, optional `defect_type`, `inspector_id`, `sku_id`) |
-| `GET`              | `/api/inspections/supervised/summary`                   | Supervisor dashboard KPIs (`?supervisor_id=`, optional `sku_id`, `batch_id`)                            |
-| `GET`              | `/api/inspections/:id`                                  | Inspection detail                                                                                       |
-| `POST`             | `/api/inspections/:id/ai-inspections`                   | multipart `image` → local save + vision prediction                                                      |
-| `POST`             | `/api/inspections/:id/predictions/:predictionId/verify` | approve / override prediction                                                                           |
+| Method     | Path                                                    | Description                                                                                             |
+| ---------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `GET`      | `/api/health`                                           | Health + DB check                                                                                       |
+| `GET/POST` | `/api/users`                                            | List (`?q=`) / create user+role                                                                         |
+| `GET/POST` | `/api/skus`                                             | List / create SKU                                                                                       |
+| `GET/POST` | `/api/manufacturing-units`                              | List / create manufacturing unit                                                                        |
+| `GET`      | `/api/products`                                         | List products (includes batch / SKU / unit info)                                                        |
+| `POST`     | `/api/products/generate`                                | Body: `sku_id`, `manufacturing_unit_id` → batch + N products                                            |
+| `GET/POST` | `/api/inspections`                                      | List (`?user_id=`) / start inspection                                                                   |
+| `GET`      | `/api/inspections/supervised`                           | Team inspections for a supervisor (`?supervisor_id=`, optional `defect_type`, `inspector_id`, `sku_id`) |
+| `GET`      | `/api/inspections/supervised/summary`                   | Supervisor dashboard KPIs (`?supervisor_id=`, optional `sku_id`, `batch_id`)                            |
+| `GET`      | `/api/inspections/:id`                                  | Inspection detail                                                                                       |
+| `POST`     | `/api/inspections/:id/ai-inspections`                   | multipart `image` → local save + vision prediction                                                      |
+| `POST`     | `/api/inspections/:id/predictions/:predictionId/verify` | approve / override prediction                                                                           |

@@ -8,10 +8,6 @@ export async function findAllManufacturingUnits({ skip, take } = {}) {
   return { items, total };
 }
 
-export async function findManufacturingUnitById(id) {
-  return prisma.manufacturingUnit.findUnique({ where: { id } });
-}
-
 export async function createManufacturingUnit(data) {
   return prisma.manufacturingUnit.create({
     data: {

@@ -21,6 +21,6 @@ export async function getInspection(req, res) {
 }
 
 export async function createInspection(req, res) {
-  const inspection = await inspectionService.createInspection(req.validatedBody);
-  res.status(201).json(inspection);
+  const { inspection, created } = await inspectionService.createInspection(req.validatedBody);
+  res.status(created ? 201 : 200).json(inspection);
 }

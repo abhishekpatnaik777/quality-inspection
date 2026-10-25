@@ -21,14 +21,6 @@ export async function listUsers(query) {
   });
 }
 
-export async function getUser(id) {
-  const user = await userRepository.findUserById(id);
-  if (!user) {
-    throw new ApiError(404, 'User not found');
-  }
-  return serializeUser(user);
-}
-
 export async function createUser(payload) {
   const { name, email, role, supervisor_id, created_by, updated_by } = payload;
 
@@ -78,36 +70,6 @@ export async function createUser(payload) {
         statusCode: 400,
         message: 'created_by, updated_by, or supervisor does not exist',
       },
-    });
-  }
-}
-
-export async function updateUser(id, payload) {
-  const { name, email, status, updated_by } = payload;
-  const data = {};
-  if (name !== null) data.name = name;
-  if (email !== null) data.email = email;
-  if (status !== null) data.status = status;
-  if (updated_by !== null) data.updatedBy = updated_by;
-
-  try {
-    const user = await userRepository.updateUser(id, data);
-    return serializeUser(user);
-  } catch (err) {
-    mapPrismaError(err, {
-      P2025: { statusCode: 404, message: 'User not found' },
-      P2002: { statusCode: 409, message: 'email already exists' },
-      P2003: { statusCode: 400, message: 'updated_by user does not exist' },
-    });
-  }
-}
-
-export async function deleteUser(id) {
-  try {
-    await userRepository.deleteUser(id);
-  } catch (err) {
-    mapPrismaError(err, {
-      P2025: { statusCode: 404, message: 'User not found' },
     });
   }
 }

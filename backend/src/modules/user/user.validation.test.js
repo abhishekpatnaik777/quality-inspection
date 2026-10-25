@@ -1,11 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  validateCreateUser,
-  validateUpdateUser,
-  validateUserId,
-  USER_STATUSES,
-} from './user.validation.js';
+import { validateCreateUser } from './user.validation.js';
 
 describe('validateCreateUser', () => {
   it('requires name, email, and role', () => {
@@ -49,34 +44,5 @@ describe('validateCreateUser', () => {
       role: 'supervisor',
     });
     assert.equal(result.ok, true);
-  });
-});
-
-describe('validateUpdateUser', () => {
-  it('allows partial updates', () => {
-    const result = validateUpdateUser({ status: 'inactive' });
-    assert.equal(result.ok, true);
-    assert.equal(result.value.status, 'inactive');
-  });
-
-  it('rejects empty body', () => {
-    assert.equal(validateUpdateUser({}).ok, false);
-  });
-
-  it('allows known statuses', () => {
-    for (const status of USER_STATUSES) {
-      assert.equal(validateUpdateUser({ status }).ok, true);
-    }
-  });
-});
-
-describe('validateUserId', () => {
-  it('accepts positive integers', () => {
-    assert.deepEqual(validateUserId('3'), { ok: true, value: 3 });
-  });
-
-  it('rejects invalid ids', () => {
-    assert.equal(validateUserId('0').ok, false);
-    assert.equal(validateUserId('abc').ok, false);
   });
 });

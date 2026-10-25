@@ -6,10 +6,10 @@ import { validateCreateInspection, validateInspectionId } from './inspection.val
 import {
   validatePredictionId,
   validateVerifyPrediction,
-} from '../aiInspectionPrediction/aiInspectionPrediction.validation.js';
+} from './aiInspectionPrediction/aiInspectionPrediction.validation.js';
 import * as inspectionController from './inspection.controller.js';
-import * as aiInspectionController from '../aiInspection/aiInspection.controller.js';
-import * as aiInspectionPredictionController from '../aiInspectionPrediction/aiInspectionPrediction.controller.js';
+import * as aiInspectionController from './aiInspection/aiInspection.controller.js';
+import * as aiInspectionPredictionController from './aiInspectionPrediction/aiInspectionPrediction.controller.js';
 
 const router = Router();
 

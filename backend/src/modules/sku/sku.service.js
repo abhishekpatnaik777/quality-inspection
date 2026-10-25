@@ -1,4 +1,4 @@
-import { ApiError, mapPrismaError } from '../../utils/apiError.js';
+import { mapPrismaError } from '../../utils/apiError.js';
 import { parsePagination, toPage } from '../../utils/pagination.js';
 import { serializeSku } from './sku.serializer.js';
 import * as skuRepository from './sku.repository.js';
@@ -12,14 +12,6 @@ export async function listSkus(query = {}) {
     limit,
     total,
   });
-}
-
-export async function getSku(id) {
-  const sku = await skuRepository.findSkuById(id);
-  if (!sku) {
-    throw new ApiError(404, 'SKU not found');
-  }
-  return serializeSku(sku);
 }
 
 export async function createSku(payload) {

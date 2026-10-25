@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth.js';
 import { inflightJson } from '../../shared/api/inflightFetch.js';
 import {
-  AI_INSPECTION_STATUS_LABELS,
   DEFECT_TYPES,
   aiInspectionStatusLabel,
   defectLabel,
@@ -47,7 +46,7 @@ export default function InspectionDetailPage() {
   const [overrideById, setOverrideById] = useState({});
   const [commentById, setCommentById] = useState({});
   const [verifyingId, setVerifyingId] = useState(null);
-  const [aiRunStatusFilter, setAiRunStatusFilter] = useState('completed');
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
   const shownVisionErrorIdsRef = useRef(new Set());
 
   function syncPendingFromInspection(data) {
@@ -147,21 +146,22 @@ export default function InspectionDetailPage() {
 
   const canVerify = isQualityEngineer && pendingPredictions.length > 0;
 
-  const predictionHistory = useMemo(() => {
-    const rows = [];
+  const aiSuggestions = inspection?.ai_inspections ?? [];
+
+  const finalDefectsLabel = useMemo(() => {
+    const labels = [];
+    const seen = new Set();
     for (const ai of inspection?.ai_inspections ?? []) {
       for (const prediction of ai.predictions ?? []) {
-        rows.push({ ...prediction, ai_inspection_id: ai.id });
+        if (prediction.status === 'pending') continue;
+        const defectType = prediction.final_defect_type;
+        if (!defectType || seen.has(defectType)) continue;
+        seen.add(defectType);
+        labels.push(defectLabel(defectType));
       }
     }
-    return rows;
+    return labels.length > 0 ? labels.join(', ') : '—';
   }, [inspection]);
-
-  const filteredAiRuns = useMemo(() => {
-    const runs = inspection?.ai_inspections ?? [];
-    if (!aiRunStatusFilter) return runs;
-    return runs.filter((ai) => ai.status === aiRunStatusFilter);
-  }, [inspection, aiRunStatusFilter]);
 
   async function handleAnalyze(e) {
     e.preventDefault();
@@ -195,8 +195,8 @@ export default function InspectionDetailPage() {
       const nextInspection = {
         ...inspection,
         ai_inspections: [
-          ...(inspection.ai_inspections || []).filter((item) => item.id !== ai.id),
           ai,
+          ...(inspection.ai_inspections || []).filter((item) => item.id !== ai.id),
         ],
       };
       setInspection(nextInspection);
@@ -211,6 +211,10 @@ export default function InspectionDetailPage() {
 
   function closeErrorModal() {
     setErrorModal(null);
+  }
+
+  function closeSuggestionModal() {
+    setSelectedSuggestion(null);
   }
 
   async function submitVerification(prediction) {
@@ -309,6 +313,84 @@ export default function InspectionDetailPage() {
         </div>
       )}
 
+      {selectedSuggestion && (
+        <div className="modal-backdrop" role="presentation" onClick={closeSuggestionModal}>
+          <div
+            className="modal modal-wide"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ai-suggestion-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2 id="ai-suggestion-title">Analysis #{selectedSuggestion.id}</h2>
+            </div>
+            <div className="suggestion-modal-layout">
+              {selectedSuggestion.image_url ? (
+                <img
+                  className="suggestion-modal-photo"
+                  src={selectedSuggestion.image_url}
+                  alt={`Analysis ${selectedSuggestion.id}`}
+                />
+              ) : (
+                <div className="suggestion-modal-photo-placeholder">No image</div>
+              )}
+              <p className="muted">
+                Status:{' '}
+                <span className={aiInspectionStatusBadge(selectedSuggestion.status)}>
+                  {aiInspectionStatusLabel(selectedSuggestion.status)}
+                </span>
+              </p>
+              {(selectedSuggestion.predictions ?? []).length === 0 ? (
+                <p className="empty-state">No predictions for this analysis.</p>
+              ) : (
+                <div className="table-wrap">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>AI prediction</th>
+                        <th>Confidence</th>
+                        <th>Status</th>
+                        <th>Final defect</th>
+                        <th>Comment</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedSuggestion.predictions.map((prediction) => (
+                        <tr key={prediction.id}>
+                          <td>
+                            <strong>#{prediction.id}</strong>
+                          </td>
+                          <td>{defectLabel(prediction.ai_defect_type)}</td>
+                          <td className="cell-muted">{Number(prediction.confidence).toFixed(4)}</td>
+                          <td>
+                            <span className={predictionStatusBadge(prediction.status)}>
+                              {predictionStatusLabel(prediction.status)}
+                            </span>
+                          </td>
+                          <td className="cell-muted">
+                            {prediction.status === 'pending'
+                              ? 'Pending'
+                              : defectLabel(prediction.final_defect_type)}
+                          </td>
+                          <td className="cell-muted">{prediction.comment?.trim() || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="primary-btn" onClick={closeSuggestionModal}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <p className="loading-state">Loading inspection…</p>
       ) : !inspection ? null : (
@@ -333,6 +415,10 @@ export default function InspectionDetailPage() {
             <div className="summary-item">
               <dt>Mfg unit</dt>
               <dd>{inspection.product?.manufacturing_unit_name ?? '—'}</dd>
+            </div>
+            <div className="summary-item">
+              <dt>Final defects</dt>
+              <dd>{finalDefectsLabel}</dd>
             </div>
           </dl>
 
@@ -497,104 +583,46 @@ export default function InspectionDetailPage() {
             </section>
           )}
 
-          {inspection.ai_inspections?.length > 0 && (
+          {aiSuggestions.length > 0 && (
             <section className="page-section">
-              <div className="section-header-row">
-                <h2>AI runs</h2>
-                <label className="inline-filter">
-                  Status
-                  <select
-                    value={aiRunStatusFilter}
-                    onChange={(e) => setAiRunStatusFilter(e.target.value)}
-                  >
-                    <option value="">All statuses</option>
-                    {Object.entries(AI_INSPECTION_STATUS_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              {filteredAiRuns.length === 0 ? (
-                <p className="muted">No AI runs match this status.</p>
-              ) : (
-                <div className="table-wrap">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Run</th>
-                        <th>Status</th>
-                        <th>Predictions</th>
-                        <th>Image</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredAiRuns.map((ai) => (
-                        <tr key={ai.id}>
-                          <td>
-                            <strong>#{ai.id}</strong>
-                          </td>
-                          <td>
-                            <span className={aiInspectionStatusBadge(ai.status)}>
-                              {aiInspectionStatusLabel(ai.status)}
-                            </span>
-                          </td>
-                          <td className="cell-muted">{ai.predictions?.length || 0}</td>
-                          <td className="cell-muted">
-                            {ai.image_url ? (
-                              <a href={ai.image_url} target="_blank" rel="noreferrer">
-                                View
-                              </a>
-                            ) : (
-                              '—'
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
-          )}
-
-          {predictionHistory.length > 0 && (
-            <section className="page-section">
-              <h2>Prediction history</h2>
+              <h2>Analysis history</h2>
               <div className="table-wrap">
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>ID</th>
-                      <th>AI inspection</th>
-                      <th>AI prediction</th>
-                      <th>Confidence</th>
+                      <th>Run</th>
                       <th>Status</th>
-                      <th>Final defect</th>
-                      <th>Comment</th>
+                      <th>Predictions</th>
+                      <th>Approved</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {predictionHistory.map((prediction) => (
-                      <tr key={prediction.id}>
+                    {aiSuggestions.map((ai) => (
+                      <tr
+                        key={ai.id}
+                        className="table-row-clickable"
+                        tabIndex={0}
+                        role="button"
+                        onClick={() => setSelectedSuggestion(ai)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedSuggestion(ai);
+                          }
+                        }}
+                      >
                         <td>
-                          <strong>#{prediction.id}</strong>
+                          <strong>#{ai.id}</strong>
                         </td>
-                        <td className="cell-muted">#{prediction.ai_inspection_id}</td>
-                        <td>{defectLabel(prediction.ai_defect_type)}</td>
-                        <td className="cell-muted">{Number(prediction.confidence).toFixed(4)}</td>
                         <td>
-                          <span className={predictionStatusBadge(prediction.status)}>
-                            {predictionStatusLabel(prediction.status)}
+                          <span className={aiInspectionStatusBadge(ai.status)}>
+                            {aiInspectionStatusLabel(ai.status)}
                           </span>
                         </td>
+                        <td className="cell-muted">{ai.predictions?.length || 0}</td>
                         <td className="cell-muted">
-                          {prediction.status === 'pending'
-                            ? 'Pending'
-                            : defectLabel(prediction.final_defect_type)}
+                          {(ai.predictions ?? []).filter((p) => p.status === 'approved').length}
                         </td>
-                        <td className="cell-muted">{prediction.comment?.trim() || '—'}</td>
                       </tr>
                     ))}
                   </tbody>

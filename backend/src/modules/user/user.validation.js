@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { parseSchema } from '../../utils/validate.js';
-import { roleSchema, userStatusSchema, USER_STATUSES } from '../../constants/enums.js';
-
-export { USER_STATUSES };
+import { roleSchema } from '../../constants/enums.js';
 
 export const userIdSchema = z.coerce
   .number({ invalid_type_error: 'id must be a number' })
@@ -44,53 +42,6 @@ export const createUserSchema = z
     }
   });
 
-export const updateUserSchema = z
-  .object({
-    name: z
-      .string()
-      .trim()
-      .min(1, 'name must be a non-empty string')
-      .max(255, 'name must be at most 255 characters')
-      .optional(),
-    email: z
-      .string()
-      .trim()
-      .email('email must be a valid email address')
-      .max(255, 'email must be at most 255 characters')
-      .optional(),
-    status: userStatusSchema.optional(),
-    updated_by: userIdSchema.nullable().optional(),
-  })
-  .refine(
-    (data) =>
-      data.name !== undefined ||
-      data.email !== undefined ||
-      data.status !== undefined ||
-      data.updated_by !== undefined,
-    { message: 'At least one field is required' }
-  );
-
 export function validateCreateUser(body) {
   return parseSchema(createUserSchema, body ?? {});
-}
-
-export function validateUpdateUser(body) {
-  const parsed = parseSchema(updateUserSchema, body ?? {});
-  if (!parsed.ok) {
-    return parsed;
-  }
-
-  return {
-    ok: true,
-    value: {
-      name: parsed.value.name ?? null,
-      email: parsed.value.email ?? null,
-      status: parsed.value.status ?? null,
-      updated_by: parsed.value.updated_by === undefined ? null : parsed.value.updated_by,
-    },
-  };
-}
-
-export function validateUserId(id) {
-  return parseSchema(userIdSchema, id);
 }
