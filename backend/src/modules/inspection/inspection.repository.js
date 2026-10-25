@@ -71,16 +71,16 @@ export async function findUsersByIds(ids) {
   });
 }
 
-export async function findSupervisedInspections({
-  engineerIds,
-  inspectorId,
-  defectType,
-  skuId,
+export async function findLoggedInspections({
+  engineerIds = null,
+  inspectorId = null,
+  defectType = null,
+  skuId = null,
   skip,
   take,
 }) {
   const where = {
-    userId: inspectorId ? inspectorId : { in: engineerIds },
+    ...(inspectorId ? { userId: inspectorId } : engineerIds ? { userId: { in: engineerIds } } : {}),
     ...(skuId
       ? {
           product: {

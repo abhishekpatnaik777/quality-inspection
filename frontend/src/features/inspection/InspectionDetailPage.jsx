@@ -21,7 +21,7 @@ import {
   predictionStatusBadge,
 } from './statusBadge.js';
 
-const AI_POLL_INTERVAL_MS = 2000;
+const AI_POLL_INTERVAL_MS = 5000;
 
 function fetchInspection(id) {
   const url = `/api/inspections/${id}`;

@@ -2,7 +2,7 @@
 CREATE TYPE "inspection_status" AS ENUM ('pending', 'pass', 'fail');
 
 -- CreateEnum
-CREATE TYPE "ai_inspection_status" AS ENUM ('processing', 'awaiting_verification', 'completed');
+CREATE TYPE "ai_inspection_status" AS ENUM ('processing', 'awaiting_verification', 'completed', 'error');
 
 -- CreateEnum
 CREATE TYPE "defect_type" AS ENUM ('scratch', 'dent', 'paint_issue', 'missing_component', 'no_defect');

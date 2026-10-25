@@ -24,7 +24,7 @@ export function requireQualityEngineer(userIdField = 'user_id') {
       );
 
       if (!isQualityEngineer) {
-        return next(new ApiError(403, 'Only quality engineers can start inspections'));
+        return next(new ApiError(403, 'Only quality engineers can perform this action'));
       }
 
       req.qualityEngineer = user;

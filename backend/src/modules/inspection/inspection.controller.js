@@ -15,6 +15,16 @@ export async function getSupervisedSummary(req, res) {
   res.json(result);
 }
 
+export async function listOverviewInspections(req, res) {
+  const result = await inspectionService.listOverviewInspections(req.query);
+  res.json(result);
+}
+
+export async function getOverviewSummary(req, res) {
+  const result = await inspectionService.getOverviewSummary();
+  res.json(result);
+}
+
 export async function getInspection(req, res) {
   const inspection = await inspectionService.getInspection(req.validatedParams.id);
   res.json(inspection);

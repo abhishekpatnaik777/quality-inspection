@@ -1,12 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth.js';
 import AppShell from '../../layout/AppShell.jsx';
 import { fetchAllPages } from '../../shared/api/pagination.js';
 
-const ROLE_PICKER = {
+const ROLE_USER_PICKER = {
   supervisor: {
-    title: 'Select supervisor',
     label: 'Supervisor',
     loading: 'Loading supervisors…',
     empty: 'No supervisors found. Please ask an admin to add a supervisor.',
@@ -14,7 +13,6 @@ const ROLE_PICKER = {
     placeholder: 'Select a supervisor',
   },
   quality_engineer: {
-    title: 'Select quality engineer',
     label: 'Quality engineer',
     loading: 'Loading quality engineers…',
     empty: 'No quality engineers found. Please ask an admin to add a quality engineer.',
@@ -24,6 +22,16 @@ const ROLE_PICKER = {
 };
 
 const ADMIN_SHORTCUTS = [
+  {
+    to: '/admin/dashboard',
+    title: 'Dashboard',
+    description: 'Inspection metrics across all quality engineers',
+  },
+  {
+    to: '/admin/inspections',
+    title: 'Inspections',
+    description: 'Browse all logged inspections',
+  },
   { to: '/users', title: 'Users', description: 'Manage accounts and roles' },
   { to: '/skus', title: 'SKUs', description: 'Product catalog models' },
   {
@@ -70,7 +78,7 @@ function DashboardHome() {
           <h1>Welcome{greetingName ? `, ${greetingName}` : ''}</h1>
           <p className="subtitle">
             {isAdmin
-              ? 'Manage catalog data and team accounts.'
+              ? 'Review all inspections and manage catalog data and team accounts.'
               : isQualityEngineer
                 ? 'Run inspections and verify AI predictions.'
                 : isSupervisor
@@ -98,70 +106,81 @@ function DashboardHome() {
 
 function LoginHome() {
   const { login, loginRoles } = useAuth();
-  const [pickerRole, setPickerRole] = useState(null);
+  const [selectedRole, setSelectedRole] = useState('');
   const [candidates, setCandidates] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [pickerError, setPickerError] = useState(null);
 
-  async function openRolePicker(roleValue) {
-    const copy = ROLE_PICKER[roleValue];
-    if (!copy) return;
+  const needsUser = Boolean(ROLE_USER_PICKER[selectedRole]);
+  const pickerCopy = ROLE_USER_PICKER[selectedRole] ?? null;
 
-    setPickerRole(roleValue);
+  useEffect(() => {
+    if (!needsUser || !pickerCopy) {
+      setCandidates([]);
+      setSelectedUserId('');
+      setPickerError(null);
+      setLoadingCandidates(false);
+      return undefined;
+    }
+
+    let cancelled = false;
     setLoadingCandidates(true);
     setPickerError(null);
     setSelectedUserId('');
     setCandidates([]);
 
-    try {
-      const users = await fetchAllPages(`/api/users?role=${encodeURIComponent(roleValue)}`, {
-        errorMessage: copy.loadError,
+    fetchAllPages(`/api/users?role=${encodeURIComponent(selectedRole)}`, {
+      errorMessage: pickerCopy.loadError,
+    })
+      .then((users) => {
+        if (cancelled) return;
+        const list = users.filter(
+          (u) => u.status === 'active' && Array.isArray(u.roles) && u.roles.includes(selectedRole)
+        );
+        setCandidates(list);
+        if (list.length === 1) {
+          setSelectedUserId(String(list[0].id));
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setPickerError(err.message || pickerCopy.loadError);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingCandidates(false);
       });
-      const list = users.filter(
-        (u) => u.status === 'active' && Array.isArray(u.roles) && u.roles.includes(roleValue)
-      );
-      setCandidates(list);
-      if (list.length === 1) {
-        setSelectedUserId(String(list[0].id));
-      }
-    } catch (err) {
-      setPickerError(err.message || copy.loadError);
-    } finally {
-      setLoadingCandidates(false);
-    }
-  }
 
-  function closeRolePicker() {
-    setPickerRole(null);
-    setPickerError(null);
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, [needsUser, pickerCopy, selectedRole]);
 
-  function confirmRoleLogin(e) {
+  function handleSubmit(e) {
     e.preventDefault();
+    if (!selectedRole) return;
+
+    if (!needsUser) {
+      login({ role: selectedRole });
+      return;
+    }
+
     const selected = candidates.find((c) => String(c.id) === selectedUserId);
-    if (!selected || !pickerRole) return;
+    if (!selected) return;
 
     login({
-      role: pickerRole,
+      role: selectedRole,
       user: {
         id: selected.id,
         name: selected.name,
         email: selected.email,
       },
     });
-    setPickerRole(null);
   }
 
-  function handleLoginClick(roleValue) {
-    if (roleValue === 'supervisor' || roleValue === 'quality_engineer') {
-      openRolePicker(roleValue);
-      return;
-    }
-    login({ role: roleValue });
-  }
-
-  const pickerCopy = pickerRole ? ROLE_PICKER[pickerRole] : null;
+  const canSubmit =
+    Boolean(selectedRole) &&
+    (!needsUser || (Boolean(selectedUserId) && !loadingCandidates && !pickerError));
 
   return (
     <div className="login-page">
@@ -170,44 +189,30 @@ function LoginHome() {
         <h1>Sign in</h1>
         <p className="subtitle">Choose a role to continue.</p>
 
-        <div className="login-actions" aria-label="Login options">
-          {loginRoles.map((role) => (
-            <button
-              key={role.value}
-              type="button"
-              className="login-btn"
-              onClick={() => handleLoginClick(role.value)}
-            >
-              Login as {role.label}
-            </button>
-          ))}
-        </div>
-      </div>
+        <form className="login-form" onSubmit={handleSubmit}>
+          <label>
+            Role
+            <select value={selectedRole} onChange={(e) => setSelectedRole(e.target.value)} required>
+              <option value="" disabled>
+                Select a role
+              </option>
+              {loginRoles.map((role) => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
-      {pickerCopy && (
-        <div className="modal-backdrop" role="presentation" onClick={closeRolePicker}>
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="role-login-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h2 id="role-login-title">{pickerCopy.title}</h2>
-              <button type="button" className="ghost-btn" onClick={closeRolePicker}>
-                Close
-              </button>
-            </div>
-
-            {loadingCandidates ? (
-              <p className="muted">{pickerCopy.loading}</p>
-            ) : pickerError ? (
-              <p className="error">{pickerError}</p>
-            ) : candidates.length === 0 ? (
-              <p className="empty-message">{pickerCopy.empty}</p>
-            ) : (
-              <form className="modal-form" onSubmit={confirmRoleLogin}>
+          {needsUser && pickerCopy ? (
+            <>
+              {loadingCandidates ? (
+                <p className="muted">{pickerCopy.loading}</p>
+              ) : pickerError ? (
+                <p className="error">{pickerError}</p>
+              ) : candidates.length === 0 ? (
+                <p className="empty-message">{pickerCopy.empty}</p>
+              ) : (
                 <label>
                   {pickerCopy.label}
                   <select
@@ -225,19 +230,15 @@ function LoginHome() {
                     ))}
                   </select>
                 </label>
-                <div className="modal-actions">
-                  <button type="button" className="ghost-btn" onClick={closeRolePicker}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="primary-btn" disabled={!selectedUserId}>
-                    Continue
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+              )}
+            </>
+          ) : null}
+
+          <button type="submit" className="primary-btn login-submit" disabled={!canSubmit}>
+            Login
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

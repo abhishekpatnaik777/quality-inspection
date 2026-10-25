@@ -33,10 +33,10 @@ export async function findPredictionsByInspectionId(tx, inspectionId) {
   });
 }
 
-export async function findSummaryFilterRows(engineerIds) {
+export async function findSummaryFilterRows(engineerIds = null) {
   return prisma.aiInspectionPrediction.findMany({
     where: {
-      aiInspection: { inspection: { userId: { in: engineerIds } } },
+      ...(engineerIds ? { aiInspection: { inspection: { userId: { in: engineerIds } } } } : {}),
     },
     select: {
       aiInspection: {

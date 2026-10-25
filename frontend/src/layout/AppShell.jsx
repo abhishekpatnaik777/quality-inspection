@@ -5,6 +5,8 @@ import { sharedInflight } from '../shared/api/inflightFetch.js';
 import './AppShell.css';
 
 const ADMIN_NAV = [
+  { to: '/admin/dashboard', label: 'Dashboard' },
+  { to: '/admin/inspections', label: 'Inspections' },
   { to: '/users', label: 'Users' },
   { to: '/skus', label: 'SKUs' },
   { to: '/manufacturing-units', label: 'Manufacturing units' },

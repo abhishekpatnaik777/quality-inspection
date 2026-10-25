@@ -1,9 +1,6 @@
 -- CreateEnum
 CREATE TYPE "sku_category" AS ENUM ('electronics', 'mechanical', 'consumable', 'other');
 
--- CreateEnum
-CREATE TYPE "product_status" AS ENUM ('usable', 'damaged');
-
 -- CreateTable
 CREATE TABLE "skus" (
     "id" SERIAL NOT NULL,
@@ -51,7 +48,6 @@ CREATE TABLE "batches" (
 CREATE TABLE "products" (
     "id" SERIAL NOT NULL,
     "batch_id" INTEGER NOT NULL,
-    "status" "product_status" NOT NULL DEFAULT 'usable',
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "created_by" INTEGER,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,

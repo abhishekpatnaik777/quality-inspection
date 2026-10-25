@@ -13,10 +13,10 @@ const CAR_PART_SKUS = [
 
 const PRODUCTION_UNITS = [
   { name: 'Pune Stamping Line A', location: 'Pune, Maharashtra', capacity: 1 },
-  { name: 'Chennai Powertrain Plant', location: 'Chennai, Tamil Nadu', capacity: 2 },
-  { name: 'Gurugram Body Shop', location: 'Gurugram, Haryana', capacity: 3 },
-  { name: 'Sanand Trim Line', location: 'Sanand, Gujarat', capacity: 4 },
-  { name: 'Bengaluru Final Assembly', location: 'Bengaluru, Karnataka', capacity: 5 },
+  { name: 'Chennai Powertrain Plant', location: 'Chennai, Tamil Nadu', capacity: 4 },
+  { name: 'Gurugram Body Shop', location: 'Gurugram, Haryana', capacity: 2 },
+  { name: 'Sanand Trim Line', location: 'Sanand, Gujarat', capacity: 5 },
+  { name: 'Bengaluru Final Assembly', location: 'Bengaluru, Karnataka', capacity: 3 },
 ];
 
 async function resetDatabase() {
@@ -37,8 +37,8 @@ async function resetDatabase() {
 async function seedUsers() {
   const supervisor = await prisma.user.create({
     data: {
-      name: 'Supervisor 1',
-      email: 'supervisor1@example.com',
+      name: 'Abhas',
+      email: 'Abhas@example.com',
       status: 'active',
       roles: {
         create: { role: 'supervisor', status: 'active' },
@@ -48,8 +48,8 @@ async function seedUsers() {
 
   const engineer = await prisma.user.create({
     data: {
-      name: 'Quality Engineer 1',
-      email: 'qe1@example.com',
+      name: 'Abhishek',
+      email: 'abhishek@example.com',
       status: 'active',
       roles: {
         create: { role: 'quality_engineer', status: 'active' },
@@ -82,11 +82,35 @@ async function seedCatalog() {
   return { skus, units };
 }
 
-async function seedSampleBatches(skus, units) {
-  for (let i = 0; i < units.length; i += 1) {
-    const unit = units[i];
-    const sku = skus[i % skus.length];
+function shuffle(items) {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
 
+function pickRandomCombinations(skus, units) {
+  const pairs = [];
+  for (const sku of skus) {
+    for (const unit of units) {
+      pairs.push({ sku, unit });
+    }
+  }
+
+  const shuffled = shuffle(pairs);
+  const minCount = Math.min(3, shuffled.length);
+  const maxCount = shuffled.length;
+  const count = minCount + Math.floor(Math.random() * (maxCount - minCount + 1));
+  return shuffled.slice(0, count);
+}
+
+async function seedSampleBatches(skus, units) {
+  const combinations = pickRandomCombinations(skus, units);
+  let productsCreated = 0;
+
+  for (const { sku, unit } of combinations) {
     await prisma.$transaction(async (tx) => {
       const batch = await tx.batch.create({
         data: {
@@ -106,14 +130,18 @@ async function seedSampleBatches(skus, units) {
         })),
       });
     });
+
+    productsCreated += unit.capacity;
   }
+
+  return { batchesCreated: combinations.length, productsCreated, combinations };
 }
 
 async function main() {
   await resetDatabase();
   const { supervisor, engineer } = await seedUsers();
   const { skus, units } = await seedCatalog();
-  await seedSampleBatches(skus, units);
+  const { batchesCreated, productsCreated, combinations } = await seedSampleBatches(skus, units);
 
   console.log('Database reset. Seeded users:', {
     supervisor: supervisor.email,
@@ -127,6 +155,12 @@ async function main() {
     'Seeded manufacturing units:',
     units.map((unit) => `${unit.name} · ${unit.location} (capacity ${unit.capacity})`)
   );
+  console.log(
+    `Seeded ${batchesCreated} batch(es) / ${productsCreated} product(s) for random SKU × unit pairs:`
+  );
+  for (const { sku, unit } of combinations) {
+    console.log(`  - ${sku.name} @ ${unit.name} (${unit.capacity} product(s))`);
+  }
 }
 
 main()

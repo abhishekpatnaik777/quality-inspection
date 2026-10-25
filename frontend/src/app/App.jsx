@@ -16,6 +16,8 @@ import ViewInspectionsPage from '../features/inspection/ViewInspectionsPage.jsx'
 import InspectionDetailPage from '../features/inspection/InspectionDetailPage.jsx';
 import SupervisorDashboardPage from '../features/supervisor/SupervisorDashboardPage.jsx';
 import SupervisorInspectionsPage from '../features/supervisor/SupervisorInspectionsPage.jsx';
+import AdminDashboardPage from '../features/admin/AdminDashboardPage.jsx';
+import AdminInspectionsPage from '../features/admin/AdminInspectionsPage.jsx';
 
 export default function App() {
   return (
@@ -30,6 +32,22 @@ export default function App() {
               </RequireAuth>
             }
           >
+            <Route
+              path="/admin/dashboard"
+              element={
+                <RequireAdmin>
+                  <AdminDashboardPage />
+                </RequireAdmin>
+              }
+            />
+            <Route
+              path="/admin/inspections"
+              element={
+                <RequireAdmin>
+                  <AdminInspectionsPage />
+                </RequireAdmin>
+              }
+            />
             <Route
               path="/users"
               element={

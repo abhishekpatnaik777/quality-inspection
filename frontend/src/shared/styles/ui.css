@@ -598,31 +598,39 @@
   color: var(--muted);
 }
 
-.login-actions {
+.login-form {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
 }
 
-.login-btn {
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.login-form select {
   font: inherit;
-  padding: 12px 16px;
+  padding: 10px 12px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: var(--bg);
+  background: #fff;
   color: var(--text);
-  font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-  transition:
-    border-color 0.15s ease,
-    color 0.15s ease;
 }
 
-.login-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-soft);
+.login-form .error,
+.login-form .empty-message,
+.login-form .muted {
+  margin: 0;
+}
+
+.login-submit {
+  width: 100%;
+  margin-top: 4px;
 }
 
 /* Feedback */

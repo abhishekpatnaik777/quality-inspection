@@ -74,166 +74,46 @@ export async function createInspection(payload) {
   }
 }
 
-export async function listSupervisedInspections(query) {
-  const { page, limit, skip, take } = parsePagination(query);
-  const supervisorId = requirePositiveInt(query.supervisor_id, 'supervisor_id');
-
-  let inspectorId = null;
-  if (query.inspector_id) {
-    inspectorId = requirePositiveInt(query.inspector_id, 'inspector_id');
+function mapLoggedInspectionRow(inspection) {
+  const sku = inspection.product?.batch?.sku ?? null;
+  const predictions = (inspection.aiInspections ?? []).flatMap((ai) => ai.predictions ?? []);
+  let latestMs = 0;
+  for (const prediction of predictions) {
+    const value = prediction.verifiedAt ?? prediction.updatedAt;
+    const ms = value instanceof Date ? value.getTime() : new Date(value).getTime();
+    if (Number.isFinite(ms) && ms > latestMs) latestMs = ms;
   }
 
-  const defectType = query.defect_type ? String(query.defect_type) : null;
-  if (defectType && !DEFECT_TYPES.includes(defectType)) {
-    throw new ApiError(400, 'defect_type is invalid');
-  }
-
-  let skuId = null;
-  if (query.sku_id) {
-    skuId = requirePositiveInt(query.sku_id, 'sku_id');
-  }
-
-  const engineerIds = await inspectionRepository.findActiveEngineerIds(supervisorId);
-  if (engineerIds.length === 0) {
-    return { items: [], inspectors: [], skus: [], page, limit, total: 0 };
-  }
-
-  if (inspectorId && !engineerIds.includes(inspectorId)) {
-    throw new ApiError(403, 'Inspector is not assigned to this supervisor');
-  }
-
-  const [inspectors, skus] = await Promise.all([
-    inspectionRepository.findUsersByIds(engineerIds),
-    inspectionRepository.findSkusForEngineers(engineerIds),
-  ]);
-
-  if (skuId && !skus.some((sku) => sku.id === skuId)) {
-    return { items: [], inspectors, skus, page, limit, total: 0 };
-  }
-
-  const { items: inspections, total } = await inspectionRepository.findSupervisedInspections({
-    engineerIds,
-    inspectorId,
-    defectType,
-    skuId,
-    skip,
-    take,
-  });
-
-  const items = inspections.map((inspection) => {
-    const sku = inspection.product?.batch?.sku ?? null;
-    const predictions = (inspection.aiInspections ?? []).flatMap((ai) => ai.predictions ?? []);
-    let latestMs = 0;
-    for (const prediction of predictions) {
-      const value = prediction.verifiedAt ?? prediction.updatedAt;
-      const ms = value instanceof Date ? value.getTime() : new Date(value).getTime();
-      if (Number.isFinite(ms) && ms > latestMs) latestMs = ms;
-    }
-
-    return {
-      id: inspection.id,
-      inspection_id: inspection.id,
-      status: inspection.status,
-      inspector_id: inspection.userId,
-      inspector_name: inspection.engineer?.name ?? null,
-      timestamp: latestMs > 0 ? new Date(latestMs).toISOString() : null,
-      inspection_date: inspection.inspectionDate.toISOString().slice(0, 10),
-      product_id: inspection.productId,
-      sku_id: sku?.id ?? null,
-      sku_name: sku?.name ?? null,
-      total_defects: predictions.filter((prediction) =>
-        PHYSICAL_DEFECT_TYPES.includes(prediction.finalDefectType)
-      ).length,
-    };
-  });
-
-  return { items, inspectors, skus, page, limit, total };
+  return {
+    id: inspection.id,
+    inspection_id: inspection.id,
+    status: inspection.status,
+    inspector_id: inspection.userId,
+    inspector_name: inspection.engineer?.name ?? null,
+    timestamp: latestMs > 0 ? new Date(latestMs).toISOString() : null,
+    inspection_date: inspection.inspectionDate.toISOString().slice(0, 10),
+    product_id: inspection.productId,
+    sku_id: sku?.id ?? null,
+    sku_name: sku?.name ?? null,
+    total_defects: predictions.filter((prediction) =>
+      PHYSICAL_DEFECT_TYPES.includes(prediction.finalDefectType)
+    ).length,
+  };
 }
 
-export async function getSupervisedSummary(query) {
-  const supervisorId = requirePositiveInt(query.supervisor_id, 'supervisor_id');
+const EMPTY_SUMMARY = {
+  total_inspected: 0,
+  products_defective: 0,
+  total_predictions: 0,
+  passed: 0,
+  failed: 0,
+  accepted: 0,
+  defect_rate: 0,
+  ai_acceptance_rate: 0,
+  defect_breakdown: [],
+};
 
-  let skuId = null;
-  if (query.sku_id) {
-    skuId = requirePositiveInt(query.sku_id, 'sku_id');
-  }
-
-  let batchId = null;
-  if (query.batch_id) {
-    batchId = requirePositiveInt(query.batch_id, 'batch_id');
-  }
-
-  const engineerIds = await inspectionRepository.findActiveEngineerIds(supervisorId);
-
-  const emptySummary = {
-    total_inspected: 0,
-    products_defective: 0,
-    total_predictions: 0,
-    passed: 0,
-    failed: 0,
-    accepted: 0,
-    defect_rate: 0,
-    ai_acceptance_rate: 0,
-    defect_breakdown: [],
-  };
-
-  if (engineerIds.length === 0) {
-    return { summary: emptySummary, skus: [], batches: [] };
-  }
-
-  const inspectionScope = {
-    userId: { in: engineerIds },
-    ...(skuId || batchId
-      ? {
-          product: {
-            batch: {
-              ...(skuId ? { skuId } : {}),
-              ...(batchId ? { id: batchId } : {}),
-            },
-          },
-        }
-      : {}),
-  };
-
-  const [filterRows, metricRows] = await Promise.all([
-    findSummaryFilterRows(engineerIds),
-    findSummaryMetricRows(inspectionScope),
-  ]);
-
-  const skuMap = new Map();
-  const batchMap = new Map();
-  for (const row of filterRows) {
-    const batch = row.aiInspection?.inspection?.product?.batch;
-    if (!batch) continue;
-    if (batch.sku) {
-      skuMap.set(batch.sku.id, { id: batch.sku.id, name: batch.sku.name });
-    }
-    batchMap.set(batch.id, {
-      id: batch.id,
-      batch_number: batch.batchNumber,
-      sku_id: batch.skuId,
-      sku_name: batch.sku?.name ?? null,
-    });
-  }
-
-  const skus = [...skuMap.values()].sort((a, b) => a.name.localeCompare(b.name));
-  const batches = [...batchMap.values()].sort((a, b) =>
-    String(a.batch_number).localeCompare(String(b.batch_number))
-  );
-
-  if (skuId && !skus.some((sku) => sku.id === skuId)) {
-    return { summary: emptySummary, skus, batches };
-  }
-  if (batchId && !batches.some((batch) => batch.id === batchId)) {
-    return { summary: emptySummary, skus, batches };
-  }
-  if (skuId && batchId) {
-    const batch = batches.find((item) => item.id === batchId);
-    if (batch && batch.sku_id !== skuId) {
-      return { summary: emptySummary, skus, batches };
-    }
-  }
-
+function buildSummaryFromMetricRows(metricRows) {
   const productIds = new Set();
   const inspectionDefect = new Map();
   let passed = 0;
@@ -287,18 +167,174 @@ export async function getSupervisedSummary(query) {
     denominator === 0 ? 0 : Math.round((numerator / denominator) * 1000) / 10;
 
   return {
-    summary: {
-      total_inspected: productIds.size,
-      products_defective: defectiveInspections,
-      total_predictions: totalPredictions,
-      passed,
-      failed,
-      accepted: passed,
-      defect_rate: pct(defectiveInspections, totalInspections),
-      ai_acceptance_rate: pct(passed, totalPredictions),
-      defect_breakdown: defectBreakdown,
-    },
+    total_inspected: productIds.size,
+    products_defective: defectiveInspections,
+    total_predictions: totalPredictions,
+    passed,
+    failed,
+    accepted: passed,
+    defect_rate: pct(defectiveInspections, totalInspections),
+    ai_acceptance_rate: pct(passed, totalPredictions),
+    defect_breakdown: defectBreakdown,
+  };
+}
+
+function buildFilterOptions(filterRows) {
+  const skuMap = new Map();
+  const batchMap = new Map();
+  for (const row of filterRows) {
+    const batch = row.aiInspection?.inspection?.product?.batch;
+    if (!batch) continue;
+    if (batch.sku) {
+      skuMap.set(batch.sku.id, { id: batch.sku.id, name: batch.sku.name });
+    }
+    batchMap.set(batch.id, {
+      id: batch.id,
+      batch_number: batch.batchNumber,
+      sku_id: batch.skuId,
+      sku_name: batch.sku?.name ?? null,
+    });
+  }
+
+  const skus = [...skuMap.values()].sort((a, b) => a.name.localeCompare(b.name));
+  const batches = [...batchMap.values()].sort((a, b) =>
+    String(a.batch_number).localeCompare(String(b.batch_number))
+  );
+  return { skus, batches };
+}
+
+export async function listSupervisedInspections(query) {
+  const { page, limit, skip, take } = parsePagination(query);
+  const supervisorId = requirePositiveInt(query.supervisor_id, 'supervisor_id');
+
+  let inspectorId = null;
+  if (query.inspector_id) {
+    inspectorId = requirePositiveInt(query.inspector_id, 'inspector_id');
+  }
+
+  const defectType = query.defect_type ? String(query.defect_type) : null;
+  if (defectType && !DEFECT_TYPES.includes(defectType)) {
+    throw new ApiError(400, 'defect_type is invalid');
+  }
+
+  let skuId = null;
+  if (query.sku_id) {
+    skuId = requirePositiveInt(query.sku_id, 'sku_id');
+  }
+
+  const engineerIds = await inspectionRepository.findActiveEngineerIds(supervisorId);
+  if (engineerIds.length === 0) {
+    return { items: [], inspectors: [], skus: [], page, limit, total: 0 };
+  }
+
+  if (inspectorId && !engineerIds.includes(inspectorId)) {
+    throw new ApiError(403, 'Inspector is not assigned to this supervisor');
+  }
+
+  const [inspectors, skus] = await Promise.all([
+    inspectionRepository.findUsersByIds(engineerIds),
+    inspectionRepository.findSkusForEngineers(engineerIds),
+  ]);
+
+  if (skuId && !skus.some((sku) => sku.id === skuId)) {
+    return { items: [], inspectors, skus, page, limit, total: 0 };
+  }
+
+  const { items: inspections, total } = await inspectionRepository.findLoggedInspections({
+    engineerIds,
+    inspectorId,
+    defectType,
+    skuId,
+    skip,
+    take,
+  });
+
+  return {
+    items: inspections.map(mapLoggedInspectionRow),
+    inspectors,
+    skus,
+    page,
+    limit,
+    total,
+  };
+}
+
+export async function listOverviewInspections(query) {
+  const { page, limit, skip, take } = parsePagination(query);
+  const { items: inspections, total } = await inspectionRepository.findLoggedInspections({
+    skip,
+    take,
+  });
+
+  return {
+    items: inspections.map(mapLoggedInspectionRow),
+    page,
+    limit,
+    total,
+  };
+}
+
+export async function getSupervisedSummary(query) {
+  const supervisorId = requirePositiveInt(query.supervisor_id, 'supervisor_id');
+
+  let skuId = null;
+  if (query.sku_id) {
+    skuId = requirePositiveInt(query.sku_id, 'sku_id');
+  }
+
+  let batchId = null;
+  if (query.batch_id) {
+    batchId = requirePositiveInt(query.batch_id, 'batch_id');
+  }
+
+  const engineerIds = await inspectionRepository.findActiveEngineerIds(supervisorId);
+
+  if (engineerIds.length === 0) {
+    return { summary: EMPTY_SUMMARY, skus: [], batches: [] };
+  }
+
+  const inspectionScope = {
+    userId: { in: engineerIds },
+    ...(skuId || batchId
+      ? {
+          product: {
+            batch: {
+              ...(skuId ? { skuId } : {}),
+              ...(batchId ? { id: batchId } : {}),
+            },
+          },
+        }
+      : {}),
+  };
+
+  const [filterRows, metricRows] = await Promise.all([
+    findSummaryFilterRows(engineerIds),
+    findSummaryMetricRows(inspectionScope),
+  ]);
+
+  const { skus, batches } = buildFilterOptions(filterRows);
+
+  if (skuId && !skus.some((sku) => sku.id === skuId)) {
+    return { summary: EMPTY_SUMMARY, skus, batches };
+  }
+  if (batchId && !batches.some((batch) => batch.id === batchId)) {
+    return { summary: EMPTY_SUMMARY, skus, batches };
+  }
+  if (skuId && batchId) {
+    const batch = batches.find((item) => item.id === batchId);
+    if (batch && batch.sku_id !== skuId) {
+      return { summary: EMPTY_SUMMARY, skus, batches };
+    }
+  }
+
+  return {
+    summary: buildSummaryFromMetricRows(metricRows),
     skus,
     batches,
   };
+}
+
+export async function getOverviewSummary() {
+  const metricRows = await findSummaryMetricRows({});
+  return { summary: buildSummaryFromMetricRows(metricRows) };
 }

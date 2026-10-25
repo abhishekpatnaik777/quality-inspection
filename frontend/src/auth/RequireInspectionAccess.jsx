@@ -1,15 +1,15 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from './useAuth.js';
 
-/** Quality engineers and supervisors can view inspection detail. */
+/** Quality engineers, supervisors, and admins can view inspection detail. */
 export default function RequireInspectionAccess({ children }) {
-  const { isAuthenticated, isQualityEngineer, isSupervisor } = useAuth();
+  const { isAuthenticated, isAdmin, isQualityEngineer, isSupervisor } = useAuth();
 
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
-  if (!isQualityEngineer && !isSupervisor) {
+  if (!isAdmin && !isQualityEngineer && !isSupervisor) {
     return <Navigate to="/" replace />;
   }
 

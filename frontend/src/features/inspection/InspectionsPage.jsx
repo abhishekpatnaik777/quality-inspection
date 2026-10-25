@@ -215,7 +215,7 @@ export default function InspectionsPage() {
 
             {batchId && (
               <label>
-                Product
+                Product number
                 <select
                   value={productId}
                   onChange={(e) => setProductId(e.target.value)}
