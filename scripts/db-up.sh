@@ -24,7 +24,7 @@ if ! command -v psql >/dev/null 2>&1; then
   exit 1
 fi
 
-ENV_FILE="$ROOT/server/.env"
+ENV_FILE="$ROOT/backend/.env"
 if [[ -f "$ENV_FILE" ]]; then
   set -a
   # shellcheck disable=SC1090
@@ -77,7 +77,7 @@ else
 fi
 
 echo "Applying Prisma schema + seed…"
-npm run migrate --prefix server
+npm run migrate --prefix backend
 
 echo "Database is ready."
 echo "DATABASE_URL=${DATABASE_URL}"

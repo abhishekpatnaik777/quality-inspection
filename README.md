@@ -6,13 +6,23 @@ Boilerplate full-stack app: **React (Vite)** + **Node.js (Express)** + **Postgre
 
 ```
 quality-inspection/
-├── client/                 # React frontend (Vite)
-├── server/
+├── frontend/               # React frontend (Vite)
+├── backend/
 │   ├── prisma/             # Prisma schema, migrations, seed
-│   └── src/                # Express API (Prisma client)
+│   └── src/
+│       ├── app.js          # Express app configuration
+│       ├── server.js       # Entry point (listens on port)
+│       ├── config/         # Environment + Prisma client
+│       ├── constants/      # Shared enums
+│       ├── middlewares/    # Auth, validation, errors
+│       ├── modules/        # Feature modules (user, product, inspection, …)
+│       ├── routes/         # Aggregates module routers under /api
+│       └── utils/          # ApiError, uploads, helpers
 ├── scripts/                # DB setup helpers
 └── package.json            # Root scripts
 ```
+
+Each feature under `backend/src/modules/<entity>/` keeps its route, controller, service, repository, validation, and serializer together.
 
 ## Prerequisites
 
@@ -29,7 +39,7 @@ npm run install:all
 npm run db:up
 ```
 
-Prisma commands (from `server/`):
+Prisma commands (from `backend/`):
 
 ```bash
 npm run prisma:migrate   # create/apply migrations in dev
@@ -37,9 +47,9 @@ npm run migrate          # deploy migrations + seed
 npm run prisma:seed      # seed only
 ```
 
-Schema source of truth: `server/prisma/schema.prisma`.
+Schema source of truth: `backend/prisma/schema.prisma`.
 
-`server/.env` (Postgres.app default — your macOS username, no password):
+`backend/.env` (Postgres.app default — your macOS username, no password):
 
 ```
 DATABASE_URL=postgresql://YOUR_MAC_USERNAME@127.0.0.1:5432/quality_inspection
@@ -268,7 +278,7 @@ QE session against one product.
 
 ### AI_INSPECTION
 
-Photo upload + vision run for an inspection. Images are stored under `server/uploads/inspections/`.
+Photo upload + vision run for an inspection. Images are stored under `backend/uploads/inspections/`.
 
 | Field                   | Type                                                              |
 | ----------------------- | ----------------------------------------------------------------- |
@@ -312,7 +322,7 @@ Confirmed defect only (no row when final is `no_defect`). Created when a predict
 
 **QE flow:** start inspection → upload photo → AI prediction shown → accept or override (+ comment) → save.
 
-Set `GOOGLE_AI_API_KEY` in `server/.env` for real Google Gemini vision calls (replace the `googleAPIKey` placeholder). Optional: `GOOGLE_VISION_MODEL` (default `gemini-2.0-flash`). The placeholder value is ignored. Without a real key (or with `MOCK_VISION=true`) the API returns mock dent/scratch predictions so local UI still works.
+Set `GOOGLE_AI_API_KEY` in `backend/.env` for real Google Gemini vision calls (replace the `googleAPIKey` placeholder). Optional: `GOOGLE_VISION_MODEL` (default `gemini-2.0-flash`). The placeholder value is ignored. Without a real key (or with `MOCK_VISION=true`) the API returns mock dent/scratch predictions so local UI still works.
 
 ### Admin UI
 
@@ -349,9 +359,9 @@ After **Login as Supervisor**, the dashboard links to:
 A Husky **pre-commit** hook runs automatically before every commit:
 
 1. **Format** — `prettier --write` (auto-formats, then re-stages changes)
-2. **Lint** — `oxlint` (client + server)
-3. **Unit tests** — Node test runner (server) + Vitest (client)
-4. **Security audit** — `npm audit` (root, server, client; fails on high+)
+2. **Lint** — `oxlint` (frontend + backend)
+3. **Unit tests** — Node test runner (backend) + Vitest (frontend)
+4. **Security audit** — `npm audit` (root, backend, frontend; fails on high+)
 
 ```bash
 npm run precommit

@@ -7,7 +7,7 @@ build/
 .DS_Store
 coverage/
 .vite/
-server/node_modules/.prisma/
-server/uploads/**/*
-!server/uploads/.gitkeep
+backend/node_modules/.prisma/
+backend/uploads/**/*
+!backend/uploads/.gitkeep
 
