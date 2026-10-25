@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth.js';
 import { inflightJson } from '../../shared/api/inflightFetch.js';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/pagination.js';
 import PaginationBar from '../../shared/ui/PaginationBar.jsx';
-import { DEFECT_TYPES } from '../inspection/defects.js';
+import { DEFECT_TYPES, inspectionStatusLabel } from '../inspection/defects.js';
+import { inspectionStatusBadge } from '../inspection/statusBadge.js';
+
+const DEFECT_TYPE_VALUES = new Set(DEFECT_TYPES.map((type) => type.value));
 
 function fetchSupervisedInspections({ supervisorId, defectType, inspectorId, skuId, page }) {
   const params = new URLSearchParams({
@@ -34,7 +37,11 @@ function formatTimestamp(value) {
 export default function SupervisorInspectionsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const supervisorId = user?.id;
+
+  const initialDefectType = searchParams.get('defect_type') || '';
+  const initialSkuId = searchParams.get('sku_id') || '';
 
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
@@ -43,13 +50,33 @@ export default function SupervisorInspectionsPage() {
   const [skus, setSkus] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [defectType, setDefectType] = useState('');
+  const [defectType, setDefectType] = useState(
+    DEFECT_TYPE_VALUES.has(initialDefectType) ? initialDefectType : ''
+  );
   const [inspectorId, setInspectorId] = useState('');
-  const [skuId, setSkuId] = useState('');
+  const [skuId, setSkuId] = useState(initialSkuId);
+
+  useEffect(() => {
+    const nextDefect = searchParams.get('defect_type') || '';
+    const nextSku = searchParams.get('sku_id') || '';
+    setDefectType(DEFECT_TYPE_VALUES.has(nextDefect) ? nextDefect : '');
+    setSkuId(nextSku);
+  }, [searchParams]);
 
   useEffect(() => {
     setPage(1);
   }, [defectType, inspectorId, skuId]);
+
+  function resetFilters() {
+    setDefectType('');
+    setInspectorId('');
+    setSkuId('');
+    if ([...searchParams.keys()].length > 0) {
+      setSearchParams({}, { replace: true });
+    }
+  }
+
+  const filtersActive = Boolean(defectType || inspectorId || skuId);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,6 +161,16 @@ export default function SupervisorInspectionsPage() {
             ))}
           </select>
         </label>
+        <div className="filter-bar-actions">
+          <button
+            type="button"
+            className="ghost-btn"
+            onClick={resetFilters}
+            disabled={!filtersActive}
+          >
+            Reset
+          </button>
+        </div>
       </div>
 
       {!loading && !error && total > 0 && (
@@ -155,8 +192,11 @@ export default function SupervisorInspectionsPage() {
               <thead>
                 <tr>
                   <th>Inspection</th>
+                  <th>Product</th>
                   <th>SKU</th>
-                  <th>Total Defects</th>
+                  <th>Status</th>
+                  <th>Total defects</th>
+                  <th>Quality engineer</th>
                   <th>Timestamp</th>
                 </tr>
               </thead>
@@ -178,8 +218,17 @@ export default function SupervisorInspectionsPage() {
                     <td>
                       <strong>#{item.inspection_id}</strong>
                     </td>
+                    <td className="cell-muted">#{item.product_id}</td>
                     <td>{item.sku_name ?? '—'}</td>
-                    <td className="cell-muted">{item.final_defect_count ?? 0}</td>
+                    <td>
+                      <span className={inspectionStatusBadge(item.status)}>
+                        {inspectionStatusLabel(item.status)}
+                      </span>
+                    </td>
+                    <td className="cell-muted">
+                      {item.total_defects ?? item.final_defect_count ?? 0}
+                    </td>
+                    <td>{item.inspector_name ?? '—'}</td>
                     <td className="cell-muted">{formatTimestamp(item.timestamp)}</td>
                   </tr>
                 ))}

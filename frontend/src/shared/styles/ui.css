@@ -672,6 +672,7 @@
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-end;
   gap: 14px 18px;
   margin-bottom: 16px;
   padding: 14px 16px;
@@ -698,6 +699,12 @@
   background: #fff;
   color: var(--text);
   min-width: 200px;
+}
+
+.filter-bar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: flex-end;
 }
 
 .filter-summary {
@@ -939,6 +946,15 @@
 
   .filter-bar select {
     min-width: 0;
+    width: 100%;
+  }
+
+  .filter-bar-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .filter-bar-actions .ghost-btn {
     width: 100%;
   }
 

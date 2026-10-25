@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/useAuth.js';
 import { inflightJson } from '../../shared/api/inflightFetch.js';
 import { defectLabel } from '../inspection/defects.js';
@@ -28,6 +29,7 @@ function KpiCard({ label, value, tone, hint }) {
 
 export default function SupervisorDashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const supervisorId = user?.id;
 
   const [summary, setSummary] = useState(null);
@@ -85,6 +87,20 @@ export default function SupervisorDashboardPage() {
     }
   }
 
+  function resetFilters() {
+    setSkuId('');
+    setBatchId('');
+  }
+
+  function openTeamInspectionsForDefect(defectType) {
+    if (!defectType) return;
+    const params = new URLSearchParams({ defect_type: defectType });
+    if (skuId) params.set('sku_id', skuId);
+    navigate(`/supervisor/inspections?${params}`);
+  }
+
+  const filtersActive = Boolean(skuId || batchId);
+
   const breakdown = summary?.defect_breakdown ?? [];
   const hasActivity =
     summary &&
@@ -128,6 +144,16 @@ export default function SupervisorDashboardPage() {
             ))}
           </select>
         </label>
+        <div className="filter-bar-actions">
+          <button
+            type="button"
+            className="ghost-btn"
+            onClick={resetFilters}
+            disabled={!filtersActive}
+          >
+            Reset
+          </button>
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -213,7 +239,19 @@ export default function SupervisorDashboardPage() {
                   </thead>
                   <tbody>
                     {breakdown.map((row) => (
-                      <tr key={row.defect_type}>
+                      <tr
+                        key={row.defect_type}
+                        className="table-row-clickable"
+                        tabIndex={0}
+                        role="link"
+                        onClick={() => openTeamInspectionsForDefect(row.defect_type)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            openTeamInspectionsForDefect(row.defect_type);
+                          }
+                        }}
+                      >
                         <td>
                           <strong>{defectLabel(row.defect_type)}</strong>
                         </td>

@@ -133,6 +133,7 @@ export async function listSupervisedInspections(query) {
     return {
       id: inspection.id,
       inspection_id: inspection.id,
+      status: inspection.status,
       inspector_id: inspection.userId,
       inspector_name: inspection.engineer?.name ?? null,
       timestamp: latestMs > 0 ? new Date(latestMs).toISOString() : null,
@@ -140,7 +141,7 @@ export async function listSupervisedInspections(query) {
       product_id: inspection.productId,
       sku_id: sku?.id ?? null,
       sku_name: sku?.name ?? null,
-      final_defect_count: predictions.filter((prediction) =>
+      total_defects: predictions.filter((prediction) =>
         PHYSICAL_DEFECT_TYPES.includes(prediction.finalDefectType)
       ).length,
     };
