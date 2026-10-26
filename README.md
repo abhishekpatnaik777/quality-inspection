@@ -41,11 +41,8 @@ Each feature under `backend/src/modules/<entity>/` keeps its route, controller, 
 # Install dependencies
 npm run install:all
 
-# Create local env (gitignored — not in the clone)
-cp backend/.env.example backend/.env
-# Edit DATABASE_URL: replace YOUR_MAC_USERNAME with the output of `whoami`
-
 # Start Postgres.app, then create DB + apply Prisma migrations + seed
+# (creates backend/.env from backend/.env.example if missing)
 npm run db:up
 ```
 
