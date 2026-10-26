@@ -25,14 +25,26 @@ if ! command -v psql >/dev/null 2>&1; then
 fi
 
 ENV_FILE="$ROOT/backend/.env"
-if [[ -f "$ENV_FILE" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
+ENV_EXAMPLE="$ROOT/backend/.env.example"
+DEFAULT_USER="$(whoami)"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  if [[ -f "$ENV_EXAMPLE" ]]; then
+    echo "backend/.env not found — creating from backend/.env.example"
+    sed "s/YOUR_MAC_USERNAME/${DEFAULT_USER}/g" "$ENV_EXAMPLE" > "$ENV_FILE"
+    echo "Wrote ${ENV_FILE} (edit GOOGLE_AI_API_KEY if you want live vision)."
+  else
+    echo "backend/.env is missing and backend/.env.example was not found."
+    echo "Create backend/.env with DATABASE_URL, then re-run: npm run db:up"
+    exit 1
+  fi
 fi
 
-DEFAULT_USER="$(whoami)"
+set -a
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+set +a
+
 DB_URL="${DATABASE_URL:-postgresql://${DEFAULT_USER}@127.0.0.1:5432/quality_inspection}"
 
 IFS='|' read -r DB_HOST DB_PORT DB_USER DB_PASS DB_NAME < <(

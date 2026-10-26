@@ -41,6 +41,10 @@ Each feature under `backend/src/modules/<entity>/` keeps its route, controller, 
 # Install dependencies
 npm run install:all
 
+# Create local env (gitignored — not in the clone)
+cp backend/.env.example backend/.env
+# Edit DATABASE_URL: replace YOUR_MAC_USERNAME with the output of `whoami`
+
 # Start Postgres.app, then create DB + apply Prisma migrations + seed
 npm run db:up
 ```
@@ -55,14 +59,7 @@ npm run prisma:seed      # seed only
 
 Schema source of truth: `backend/prisma/schema.prisma`.
 
-`backend/.env` (Postgres.app default — your macOS username, no password):
-
-```
-DATABASE_URL=postgresql://YOUR_MAC_USERNAME@127.0.0.1:5432/quality_inspection
-PORT=4000
-CLIENT_ORIGIN=http://localhost:5173
-GOOGLE_AI_API_KEY=googleAPIKey
-```
+`backend/.env` is required for the API (Prisma reads `DATABASE_URL` from it). Use `backend/.env.example` as the template — never commit real keys.
 
 ## Develop
 
