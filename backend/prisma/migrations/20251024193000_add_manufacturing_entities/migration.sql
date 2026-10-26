@@ -77,9 +77,6 @@ CREATE INDEX "idx_batches_sku_id" ON "batches"("sku_id");
 -- CreateIndex
 CREATE INDEX "idx_products_batch_id" ON "products"("batch_id");
 
--- CreateIndex
-CREATE INDEX "idx_products_status" ON "products"("status");
-
 -- AddForeignKey
 ALTER TABLE "skus" ADD CONSTRAINT "skus_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
