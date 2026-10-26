@@ -48,8 +48,8 @@ const ENGINEER_SHORTCUTS = [
     title: 'Dashboard',
     description: 'Metrics for inspections you have completed',
   },
-  { to: '/inspections', title: 'Start inspection', description: 'Begin a new quality check' },
   { to: '/inspections/view', title: 'Inspections', description: 'Review past inspections' },
+  { to: '/inspections', title: 'Start inspection', description: 'Begin a new quality check' },
 ];
 
 const SUPERVISOR_SHORTCUTS = [
