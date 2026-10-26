@@ -416,4 +416,5 @@ List `GET`s accept `page` / `limit` (default 20, max 100). Starting an inspectio
 
 1. Multiple AI suggestions for one product is not possible.
 2. User authentication is not added.
-3.
+3. Edit options for any entity are not available.
+4. Quality inspector has to upload a photo. Camera access in not possible.
